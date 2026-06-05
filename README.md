@@ -5,7 +5,6 @@
 > **Nota sobre protocolo de comunicacion entre nodos:** El uso de gRPC sobre HTTP/2 como
 > protocolo de comunicacion entre dispositivos esta planteado como opcion tecnologica pero es
 > **sujeto a cambio** durante la fase de desarrollo. En los diagramas se referencia como
-> *Canal P2P Local* y se anota con ⚠ donde corresponde.
 
 ---
 
