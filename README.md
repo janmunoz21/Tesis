@@ -2,10 +2,6 @@
 # Procesamiento Distribuido de Imagenes en Redes P2P Moviles con Modelo de Recompensas
 # Pontificia Universidad Javeriana — Mayo 2026
 
-> **Nota sobre protocolo de comunicacion entre nodos:** El uso de gRPC sobre HTTP/2 como
-> protocolo de comunicacion entre dispositivos esta planteado como opcion tecnologica pero es
-> **sujeto a cambio** durante la fase de desarrollo. En los diagramas se referencia como
-
 ---
 
 ## 1. Diagramas de Secuencia
@@ -21,12 +17,12 @@ sequenceDiagram
     participant API as Backend REST
     participant DB as Base de Datos Central
 
-    U->>APP: Ingresa nombre, correo, contrasena y rol
+    U->>APP: Ingresa nombre, correo y contraseña
     APP->>APP: Valida formato de los campos localmente
     alt Datos invalidos
         APP-->>U: Muestra errores de validacion en pantalla
     else Datos validos
-        APP->>API: POST /auth/registro (nombre, correo, hash_password, rol)
+        APP->>API: POST /auth/registro (nombre, correo, hash_password)
         activate API
         API->>DB: INSERT INTO Usuario
         alt Correo ya registrado
@@ -63,14 +59,14 @@ sequenceDiagram
     APP->>API: POST /auth/login (correo, password)
     activate API
     API->>DB: SELECT Usuario WHERE correo = correo_ingresado
-    DB-->>API: Registro con hash de contrasena y rol
+    DB-->>API: Registro con hash de contraseña
     API->>API: Verifica hash de contrasena
     deactivate API
     alt Credenciales invalidas
         API-->>APP: 401 Unauthorized
         APP-->>U: Credenciales incorrectas - intente de nuevo
     else Credenciales validas
-        API-->>APP: 200 OK - token JWT, perfil, rol y saldo
+        API-->>APP: 200 OK - token JWT, perfil y saldo
         APP->>APP: Guarda token en memoria volatil
         APP->>APP: Carga historial y datos de perfil del usuario
         alt Rol = CONSUMIDOR
@@ -438,7 +434,6 @@ classDiagram
         +String nombre
         +String correo
         +String contrasenaHash
-        +Rol rol
         +Double saldo
     }
 
@@ -496,12 +491,6 @@ classDiagram
         +mostrar()
     }
 
-    class Rol {
-        <<enumeration>>
-        CONSUMIDOR
-        PROVEEDOR
-    }
-
     class EstadoNodo {
         <<enumeration>>
         ACTIVO
@@ -530,7 +519,6 @@ classDiagram
     SolicitudDeProcesamiento "1" --> "0..1" ResultadoDeClasificacion : produce
     Transaccion --> Usuario : consumidor referenciado
     Transaccion --> Usuario : proveedor referenciado
-    Usuario --> Rol : tiene asignado
     Dispositivo --> EstadoNodo : tiene
     SolicitudDeProcesamiento --> EstadoSolicitud : tiene
     Transaccion --> EstadoTransaccion : tiene
