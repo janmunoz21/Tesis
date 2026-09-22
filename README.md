@@ -606,3 +606,9 @@ graph TD
 > - **TLS v1.3:** Cifrado de extremo a extremo en canal P2P local
 > - **Room/SQLite:** Persistencia local en cada dispositivo Android
 > - **CameraX:** API de Android Jetpack para captura de imagen
+
+## Flujo de aplicación
+
+https://github.com/user-attachments/assets/3de3035c-bbd0-4337-81e3-94d302a39d53
+
+
