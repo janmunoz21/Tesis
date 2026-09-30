@@ -23,7 +23,7 @@
 | **Institución** | Pontificia Universidad Javeriana (Sede Bogotá) — Facultad de Ingeniería, Departamento de Ingeniería de Sistemas |
 | **Director de investigación** | Ing. Alejandro Castro |
 | **Autores** | Alejandro Castelblanco Arias, Andrés Camilo Rincón Alfonso, Diego Alejandro Viera Herrera y Jan Marco Muñoz Pineda |
-| **Fecha y versión** | 25 de mayo de 2026 (Versión Final 1.0) |
+| **Fecha y versión** | 30 de septiembre de 2026 (Versión 0.0) |
 | **Dominio tecnológico** | Cómputo fragmentado (*Split Computing*), visión artificial en el dispositivo (*Edge Computing*) y redes inalámbricas locales descentralizadas |
 
 ---
