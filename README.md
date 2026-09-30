@@ -11,17 +11,11 @@
 [![Persistencia](https://img.shields.io/badge/Persistencia-Room%20%7C%20PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org)
 [![Versión](https://img.shields.io/badge/Versi%C3%B3n-1.0%20Final-blue?style=for-the-badge)]()
 
-<br>
-
-https://github.com/user-attachments/assets/3de3035c-bbd0-4337-81e3-94d302a39d53
-
-*Demostración operativa del flujo de trabajo distribuido y consolidación del álbum.*
-
 </div>
 
 ---
 
-## 1. Ficha Técnica
+## 1. Ficha Técnica del Proyecto
 
 | Parámetro | Detalle Institucional y de Proyecto |
 | :--- | :--- |
@@ -55,13 +49,13 @@ Tras experiencias grupales suelen acumularse cientos o miles de tomas fotográfi
 
 ## 4. Solución Propuesta y Flujo Operativo
 
-El sistema automatiza la compilación del material fotográfico mediante un flujo continuo en red local:
+La aplicación automatiza la compilación del material fotográfico mediante un flujo continuo en red local:
 
-<pre align="center">
+```
 [1. Creación de Sesión] ────► [2. Aporte de Fotos] ────► [3. Detección mDNS]
                                                                 │
 [6. Entrega de Álbum]   ◄──── [5. Inferencia Local] ◄──── [4. Segmentación P2P]
-</pre>
+```
 
 1. **Creación de la sesión:** Un participante crea el álbum y comparte un código de acceso o enlace con el grupo.
 2. **Aporte de archivos:** Cada integrante elige desde su galería las fotografías que desea aportar.
@@ -78,10 +72,10 @@ El sistema opera bajo dos roles de trabajo complementarios:
 
 | Rol | Naturaleza | Funciones y Responsabilidades Principales |
 | :--- | :--- | :--- |
-| **Nodo Principal** | *Consumidor / Orquestador* | Recibe fotos aportadas, preprocesa archivos a 224 × 224 píxeles, divide los bloques de trabajo, monitorea el avance del clúster y consolida el álbum definitivo. |
+| **Nodo Principal** | *Consumidor / Orquestador* | Recibe fotos aportadas, preprocesa archivos a 224 × 224 píxeles, divide los bloques de trabajo, monitorea el avance del grupo de dispositivos y consolida el álbum definitivo. |
 | **Nodo Colaborador** | *Proveedor / Trabajador* | Mantiene un servicio en segundo plano, recibe bloques asignados, ejecuta inferencias neuronales sobre las fotos y envía los vectores de clasificación. |
 
-> **Mecanismo de Respaldo Local ante Fallos**
+> 🛡️ **Mecanismo de Respaldo Local ante Fallos**
 > * El nodo principal evalúa continuamente la disponibilidad de cada terminal colaborador.
 > * Si un dispositivo pierde la conexión Wi-Fi, se apaga o sobrepasa un tiempo límite de espera de **800 ms**, el sistema revoca la asignación y recupera las fotos pendientes.
 > * Las imágenes no completadas se reasignan a otro colaborador activo o se procesan localmente en el procesador del nodo principal en un tiempo inferior a **3 s**, garantizando la continuidad de la tarea.
@@ -91,6 +85,8 @@ El sistema opera bajo dos roles de trabajo complementarios:
 ## 6. Arquitectura y Despliegue del Sistema
 
 El sistema implementa una arquitectura híbrida: el procesamiento masivo y la transmisión de imágenes ocurren dentro de la red inalámbrica local (WLAN), mientras que la autenticación de usuarios y el control de sesiones se gestionan mediante servicios en la nube a través de una pasarela segura.
+
+### Diagrama de Arquitectura del Sistema
 
 <p align="center">
   <picture>
@@ -117,16 +113,13 @@ El sistema implementa una arquitectura híbrida: el procesamiento masivo y la tr
 * **Descubrimiento de Dispositivos:** Se utiliza **mDNS / DNS-SD** (RFC 6762) en el puerto UDP 5353, permitiendo que los celulares se ubiquen en la red Wi-Fi sin configurar direcciones IP de forma manual.
 * **Transferencia entre Terminales:** La entrega de bloques y el retorno de resultados se realiza mediante **gRPC sobre HTTP/2**, serializando los mensajes con **Protocol Buffers (Proto3)** y protegiendo el canal local con **TLS v1.3**.
 * **Persistencia Local Desconectada:** Cada celular incorpora una base de datos local mediante **Room (SQLite)** de Android Jetpack, permitiendo explorar los álbumes sin depender de internet.
-* **Servidor Central:** API desarrollada para autenticación e identidades con fichas de seguridad (JWT) sobre HTTPS y persistencia en **PostgreSQL** bajo transacciones atómicas (ACID).
+* **Servidor Central:** Interfaz de servicios desarrollada para autenticación e identidades con fichas de seguridad (JWT) sobre HTTPS y persistencia en **PostgreSQL** bajo transacciones atómicas (ACID).
 
 ---
 
 ## 7. Módulos y Diagramas de Secuencia por Caso de Uso
 
-<details>
-<summary><b>Módulo B — Gestión de Álbumes (Clic para desplegar)</b></summary>
-<br>
-
+### Módulo B — Gestión de Álbumes
 Abarca la creación, administración de participantes, configuración de colecciones y visualización general.
 
 #### CU-B-01 — Crear álbum
@@ -135,16 +128,15 @@ Describe el flujo en el que un usuario registrado define el nombre y descripció
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/7f3a1103-7cf8-4eaa-9cd5-02c2b471ae89">
-    <img alt="CU-B-01 Crear álbum" src="https://github.com/user-attachments/assets/7f3a1103-7cf8-4eaa-9cd5-02c2b471ae89" width="90%">
+    <img alt="CU-B-01 — Crear álbum" src="https://github.com/user-attachments/assets/7f3a1103-7cf8-4eaa-9cd5-02c2b471ae89" width="90%">
   </picture>
+  <br>
+  <em>Figura 3: Diagrama de secuencia — Creación de álbum y apertura de sesión.</em>
 </p>
 
-</details>
+---
 
-<details>
-<summary><b>Módulo C — Red del Grupo y Tolerancia a Fallos (Clic para desplegar)</b></summary>
-<br>
-
+### Módulo C — Red del Grupo y Tolerancia a Fallos
 Monitorea la visibilidad de los celulares participantes en la red local y gestiona contingencias operativas.
 
 #### CU-C-01 — Descubrir y visualizar nodos disponibles del álbum
@@ -153,8 +145,10 @@ El participante consulta la sección de red, donde el sistema sondea la red Wi-F
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/806710c5-a769-4383-9758-d88348d56ca8">
-    <img alt="CU-C-01 Descubrir y visualizar nodos" src="https://github.com/user-attachments/assets/806710c5-a769-4383-9758-d88348d56ca8" width="90%">
+    <img alt="CU-C-01 — Descubrir y visualizar nodos disponibles del álbum" src="https://github.com/user-attachments/assets/806710c5-a769-4383-9758-d88348d56ca8" width="90%">
   </picture>
+  <br>
+  <em>Figura 4: Diagrama de secuencia — Descubrimiento y sondeo de nodos locales.</em>
 </p>
 
 #### CU-C-03 — Reasignar bloque cuando un nodo falla
@@ -163,16 +157,15 @@ Si un nodo colaborador deja de emitir respuesta dentro del tiempo límite establ
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/6e9bf2e1-3430-46d1-b48c-4eb10867a41b">
-    <img alt="CU-C-03 Reasignar bloque cuando un nodo falla" src="https://github.com/user-attachments/assets/6e9bf2e1-3430-46d1-b48c-4eb10867a41b" width="90%">
+    <img alt="CU-C-03 — Reasignar bloque cuando un nodo falla" src="https://github.com/user-attachments/assets/6e9bf2e1-3430-46d1-b48c-4eb10867a41b" width="90%">
   </picture>
+  <br>
+  <em>Figura 5: Diagrama de secuencia — Manejo de caídas y reasignación de bloques de fotos.</em>
 </p>
 
-</details>
+---
 
-<details open>
-<summary><b>Módulo D — Subida y Procesamiento Distribuido (Principal)</b></summary>
-<br>
-
+### Módulo D — Subida y Procesamiento Distribuido
 Núcleo del sistema encargado de cargar el material visual, segmentar las tareas, ejecutar la inferencia neuronal y unificar los resultados.
 
 #### CU-D-01 — Subir fotos a un álbum
@@ -181,8 +174,10 @@ El integrante elige una o varias fotografías de su galería, valida que cumplan
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/84358439-581b-4f4e-b62b-cb45850578f0">
-    <img alt="CU-D-01 Subir fotos a un álbum" src="https://github.com/user-attachments/assets/84358439-581b-4f4e-b62b-cb45850578f0" width="90%">
+    <img alt="CU-D-01 — Subir fotos a un álbum" src="https://github.com/user-attachments/assets/84358439-581b-4f4e-b62b-cb45850578f0" width="90%">
   </picture>
+  <br>
+  <em>Figura 6: Diagrama de secuencia — Carga y preparación inicial de imágenes.</em>
 </p>
 
 #### CU-D-02 — Distribuir bloques de fotos entre los nodos del grupo
@@ -191,8 +186,10 @@ El nodo anfitrión determina el número de colaboradores activos, fragmenta las 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/59e01d23-0709-4e21-9cc5-8d78c9a8dc1c">
-    <img alt="CU-D-02 Distribuir bloques de fotos" src="https://github.com/user-attachments/assets/59e01d23-0709-4e21-9cc5-8d78c9a8dc1c" width="90%">
+    <img alt="CU-D-02 — Distribuir bloques de fotos entre los nodos del grupo" src="https://github.com/user-attachments/assets/59e01d23-0709-4e21-9cc5-8d78c9a8dc1c" width="90%">
   </picture>
+  <br>
+  <em>Figura 7: Diagrama de secuencia — Distribución y partición equilibrada de bloques de trabajo.</em>
 </p>
 
 #### CU-D-04 — Procesar bloque de fotos localmente
@@ -201,8 +198,10 @@ El nodo colaborador carga el modelo MobileNetV3 en memoria, clasifica cada fotog
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/8be4ad5e-e6ea-48a8-9060-fc95ee84c419">
-    <img alt="CU-D-04 Procesar bloque de fotos localmente" src="https://github.com/user-attachments/assets/8be4ad5e-e6ea-48a8-9060-fc95ee84c419" width="90%">
+    <img alt="CU-D-04 — Procesar bloque de fotos localmente" src="https://github.com/user-attachments/assets/8be4ad5e-e6ea-48a8-9060-fc95ee84c419" width="90%">
   </picture>
+  <br>
+  <em>Figura 8: Diagrama de secuencia — Ejecución de inferencia neuronal en el nodo colaborador.</em>
 </p>
 
 #### CU-D-06 — Consolidar resultados y notificar álbum listo
@@ -211,21 +210,19 @@ El orquestador unifica las clasificaciones recibidas, agrupa las fotos en subál
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/575a1e9c-70c9-4983-9ec2-304af15ff0c8">
-    <img alt="CU-D-06 Consolidar resultados y notificar álbum listo" src="https://github.com/user-attachments/assets/575a1e9c-70c9-4983-9ec2-304af15ff0c8" width="90%">
+    <img alt="CU-D-06 — Consolidar resultados y notificar álbum listo" src="https://github.com/user-attachments/assets/575a1e9c-70c9-4983-9ec2-304af15ff0c8" width="90%">
   </picture>
+  <br>
+  <em>Figura 9: Diagrama de secuencia — Agrupación temática final y entrega a los participantes.</em>
 </p>
 
-</details>
+---
 
-<details>
-<summary><b>Módulos Complementarios (A, E, F)</b></summary>
-<br>
+### Módulos Complementarios
 
 * **Módulo A — Cuenta y Perfil de Usuario:** Registro de cuentas, inicio de sesión seguro, control de privacidad y activación manual o automática del modo colaborador en segundo plano.
 * **Módulo E — Categorización y Visualización:** Vista interactiva del álbum terminado, segmentado en subálbumes temáticos (playa, comida, reuniones, atardeceres) con la opción de reclasificar imágenes manualmente si la confianza estadística del modelo fue baja.
 * **Módulo F — Descarga y Difusión:** Opciones para exportar el álbum completo a la memoria del teléfono, descargar únicamente una categoría específica o compartir imágenes individuales en resolución nativa.
-
-</details>
 
 ---
 
@@ -249,4 +246,10 @@ El orquestador unifica las clasificaciones recibidas, agrupa las fotos en subál
 3. **Eficiencia y reducción de tiempos:** Al segmentar y procesar en paralelo las fotografías aprovechando la potencia combinada de múltiples dispositivos, se reducen notablemente los tiempos de espera en comparación con la ejecución en un solo terminal.
 4. **Entrega automatizada del producto:** Los participantes del evento obtienen de forma inmediata un álbum curado, ordenado temáticamente y libre de capturas defectuosas o redundantes.
 
+---
 
+## 10. Flujo y Demostración de la Aplicación
+
+Registro audiovisual del funcionamiento real del sistema, ilustrando la conexión entre pares, la distribución de tareas y el resultado final:
+
+https://github.com/user-attachments/assets/3de3035c-bbd0-4337-81e3-94d302a39d53
