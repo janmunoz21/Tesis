@@ -22,10 +22,12 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun CreateAlbumScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToUpload: () -> Unit = {}
+    onNavigateToUpload: () -> Unit = {},
+    onCreateAlbum: (name: String, description: String) -> Unit = { _, _ -> }
 ) {
-    var albumName by remember { mutableStateOf("Vacaciones Cartagena 2026") }
+    var albumName by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+    val isNameValid = albumName.isNotBlank()
 
     Scaffold(
         topBar = {
@@ -52,6 +54,8 @@ fun CreateAlbumScreen(
             TextField(
                 value = albumName,
                 onValueChange = { albumName = it },
+                placeholder = { Text("Ej: Vacaciones Cartagena 2026") },
+                singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
@@ -90,7 +94,11 @@ fun CreateAlbumScreen(
             Spacer(modifier = Modifier.weight(1f))
             
             Button(
-                onClick = onNavigateToUpload,
+                onClick = {
+                    onCreateAlbum(albumName, description)
+                    onNavigateToUpload()
+                },
+                enabled = isNameValid,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)

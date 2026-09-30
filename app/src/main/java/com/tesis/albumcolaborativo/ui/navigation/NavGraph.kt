@@ -1,10 +1,14 @@
 package com.tesis.albumcolaborativo.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.tesis.albumcolaborativo.ui.screens.*
+import com.tesis.albumcolaborativo.ui.viewmodel.AlbumViewModel
 
 sealed class Screen(val route: String) {
     object Welcome : Screen("welcome")
@@ -24,6 +28,10 @@ sealed class Screen(val route: String) {
 
 @Composable
 fun AppNavGraph(navController: NavHostController) {
+    // Creado fuera del NavHost para que todas las pantallas compartan la misma instancia
+    val albumViewModel: AlbumViewModel = viewModel()
+    val albums by albumViewModel.albums.collectAsState()
+
     NavHost(
         navController = navController,
         startDestination = Screen.Welcome.route
@@ -58,6 +66,7 @@ fun AppNavGraph(navController: NavHostController) {
         }
         composable(Screen.Home.route) {
             HomeScreen(
+                albums = albums,
                 onNavigateToCreateAlbum = { navController.navigate(Screen.CreateAlbum.route) },
                 onNavigateToP2P = { navController.navigate(Screen.GroupP2P.route) },
                 onNavigateToAlbumDetail = { navController.navigate(Screen.AlbumDetail.route) },
@@ -67,7 +76,8 @@ fun AppNavGraph(navController: NavHostController) {
         composable(Screen.CreateAlbum.route) {
             CreateAlbumScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToUpload = { navController.navigate(Screen.UploadPhotos.route) }
+                onNavigateToUpload = { navController.navigate(Screen.UploadPhotos.route) },
+                onCreateAlbum = { name, description -> albumViewModel.createAlbum(name, description) }
             )
         }
         composable(Screen.UploadPhotos.route) {
