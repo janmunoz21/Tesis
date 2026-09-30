@@ -1,6 +1,7 @@
 package com.tesis.albumcolaborativo.data
 
 import com.tesis.albumcolaborativo.data.model.Album
+import com.tesis.albumcolaborativo.data.model.Photo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +28,24 @@ class AlbumRepository {
         )
         _albums.update { listOf(album) + it }
         return album
+    }
+
+    /** Agrega las fotos al álbum ignorando las que ya estaban. Devuelve cuántas se agregaron. */
+    fun addPhotos(albumId: String, photos: List<Photo>): Int {
+        var added = 0
+        _albums.update { albums ->
+            albums.map { album ->
+                if (album.id != albumId) return@map album
+                val existing = album.photos.map { it.uri }.toSet()
+                val newPhotos = photos.filter { it.uri !in existing }.distinctBy { it.uri }
+                added = newPhotos.size
+                album.copy(
+                    photos = album.photos + newPhotos,
+                    photoCount = album.photoCount + newPhotos.size
+                )
+            }
+        }
+        return added
     }
 
     private fun generateInviteCode(): String {

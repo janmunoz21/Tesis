@@ -31,6 +31,8 @@ fun AppNavGraph(navController: NavHostController) {
     // Creado fuera del NavHost para que todas las pantallas compartan la misma instancia
     val albumViewModel: AlbumViewModel = viewModel()
     val albums by albumViewModel.albums.collectAsState()
+    val currentAlbumId by albumViewModel.currentAlbumId.collectAsState()
+    val pendingPhotos by albumViewModel.pendingPhotos.collectAsState()
 
     NavHost(
         navController = navController,
@@ -83,7 +85,15 @@ fun AppNavGraph(navController: NavHostController) {
         composable(Screen.UploadPhotos.route) {
             UploadPhotosScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onContinue = { navController.navigate(Screen.AssignedBlock.route) }
+                onContinue = {
+                    if (albumViewModel.confirmPendingPhotos()) {
+                        navController.navigate(Screen.AssignedBlock.route)
+                    }
+                },
+                albumTitle = albums.firstOrNull { it.id == currentAlbumId }?.title,
+                photos = pendingPhotos,
+                onPhotosPicked = albumViewModel::addPendingPhotos,
+                onRemovePhoto = albumViewModel::removePendingPhoto
             )
         }
         composable(Screen.AssignedBlock.route) {

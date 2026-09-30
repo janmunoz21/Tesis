@@ -8,5 +8,6 @@ data class Album(
     val participants: Int,
     val createdAt: Long,
     val photoCount: Int = 0,
-    val progress: Float = 0f
+    val progress: Float = 0f,
+    val photos: List<Photo> = emptyList()
 )
