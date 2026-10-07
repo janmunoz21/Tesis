@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun CreateAlbumScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToUpload: () -> Unit = {}
+    onNavigateToUpload: (albumName: String) -> Unit = {}
 ) {
     var albumName by remember { mutableStateOf("Vacaciones Cartagena 2026") }
     var description by remember { mutableStateOf("") }
@@ -90,7 +90,8 @@ fun CreateAlbumScreen(
             Spacer(modifier = Modifier.height(32.dp))
             
             Button(
-                onClick = onNavigateToUpload,
+                onClick = { onNavigateToUpload(albumName.trim()) },
+                enabled = albumName.isNotBlank(),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)

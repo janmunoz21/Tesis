@@ -15,7 +15,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun AlbumReadyScreen() {
+fun AlbumReadyScreen(
+    albumName: String = "Vacaciones Cartagena",
+    photoCount: Int = 142,
+    onViewAlbum: () -> Unit = {}
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -46,7 +50,7 @@ fun AlbumReadyScreen() {
         Spacer(modifier = Modifier.height(8.dp))
         
         Text(
-            text = "Vacaciones Cartagena está disponible para todos",
+            text = "$albumName está disponible para todos",
             style = MaterialTheme.typography.bodyMedium,
             color = Color.Gray,
             textAlign = TextAlign.Center
@@ -62,7 +66,7 @@ fun AlbumReadyScreen() {
             color = Color.White
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
-                InfoRow("Fotos totales", "142 fotos", valueColor = Color(0xFF2196F3))
+                InfoRow("Fotos totales", "$photoCount fotos", valueColor = Color(0xFF2196F3))
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
                 InfoRow("Categorías detectadas", "8 escenas")
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
@@ -75,7 +79,7 @@ fun AlbumReadyScreen() {
         Spacer(modifier = Modifier.height(48.dp))
 
         Button(
-            onClick = { /* TODO */ },
+            onClick = onViewAlbum,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),

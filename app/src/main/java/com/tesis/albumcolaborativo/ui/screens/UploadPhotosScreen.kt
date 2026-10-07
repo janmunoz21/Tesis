@@ -30,9 +30,10 @@ import com.tesis.albumcolaborativo.ui.viewmodels.UploadPhotosViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UploadPhotosScreen(
-    albumId: String = "album_javeriana",
+    albumId: String,
     onNavigateBack: () -> Unit = {},
-    onNavigateToProcessing: () -> Unit = {},
+    // CU-D-02 → CU-D-03: recibe la cantidad de fotos del bloque asignado a este dispositivo
+    onBlockAssigned: (photoCount: Int) -> Unit = {},
     viewModel: UploadPhotosViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -109,7 +110,10 @@ fun UploadPhotosScreen(
                 Button(
                     onClick = {
                         viewModel.processAndEnqueueBatch(albumId) {
-                            onNavigateToProcessing()
+                            // Sin nodos P2P todavía: el TaskDistributor asigna todo al nodo LOCAL
+                            viewModel.distributePendingTasks(albumId, nodes = emptyList()) { blocks ->
+                                onBlockAssigned(blocks.sumOf { it.tasks.size })
+                            }
                         }
                     },
                     enabled = uiState.selectedUris.isNotEmpty() && !uiState.isProcessing,
