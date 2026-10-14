@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.protobuf)
 }
 
 android {
@@ -66,6 +67,12 @@ dependencies {
     implementation("androidx.room:room-ktx:2.7.2")
     ksp("androidx.room:room-compiler:2.7.2")
 
+    // gRPC
+    implementation("io.grpc:grpc-okhttp:1.84.0")
+    implementation("io.grpc:grpc-protobuf-lite:1.84.0")
+    implementation("io.grpc:grpc-stub:1.84.0")
+    implementation("io.grpc:grpc-netty-shaded:1.84.0")
+
     // Tests
     testImplementation(libs.junit)
 
@@ -78,4 +85,31 @@ dependencies {
     // Debug
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.25.8"
+    }
+
+    plugins {
+        create("grpc") {
+            artifact = "io.grpc:protoc-gen-grpc-java:1.84.0"
+        }
+    }
+
+    generateProtoTasks {
+        all().configureEach {
+            builtins {
+                create("java") {
+                    option("lite")
+                }
+            }
+
+            plugins {
+                create("grpc") {
+                    option("lite")
+                }
+            }
+        }
+    }
 }

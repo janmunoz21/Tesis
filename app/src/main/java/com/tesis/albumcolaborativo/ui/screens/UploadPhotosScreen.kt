@@ -40,10 +40,11 @@ fun UploadPhotosScreen(
 
     // Photo Picker nativo con límite de 200 fotos (SRS CU-D-01)
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 200)
+        contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
         if (uris.isNotEmpty()) {
-            viewModel.addPhotos(uris)
+            val limitedUris = uris.take(200)
+            viewModel.addPhotos(limitedUris)
         }
     }
 
@@ -67,7 +68,7 @@ fun UploadPhotosScreen(
             FloatingActionButton(
                 onClick = {
                     photoPickerLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        arrayOf("image/*")
                     )
                 },
                 containerColor = Color(0xFF64FFDA)

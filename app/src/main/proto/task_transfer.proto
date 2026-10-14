@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+option java_package = "com.tesis.albumcolaborativo.data.distribution.grpc";
+option java_multiple_files = true;
+
+package tasktransfer;
+
+// Servicio encargado de recibir un bloque de tareas
+service TaskTransferService {
+
+    rpc SendTaskBlock (TaskBlockRequest) returns (TaskBlockResponse);
+}
+
+// Solicitud enviada por el dispositivo coordinador
+message TaskBlockRequest {
+
+    string album_id = 1;
+
+    repeated ImageTask tasks = 2;
+}
+
+// Una tarea correspondiente a una imagen
+message ImageTask {
+
+    string task_id = 1;
+
+    string tipo_tarea = 2;
+
+    string payload_json = 3;
+}
+
+// Respuesta del dispositivo colaborador
+message TaskBlockResponse {
+
+    bool accepted = 1;
+
+    string message = 2;
+}
