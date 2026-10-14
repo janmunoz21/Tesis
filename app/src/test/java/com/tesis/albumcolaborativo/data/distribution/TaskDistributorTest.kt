@@ -137,4 +137,50 @@ class TaskDistributorTest {
         assertEquals(5, blocks[0].tasks.size)
         assertEquals(5, blocks[1].tasks.size)
     }
+
+    @Test
+    fun `bloque rechazado se reasigna sin incluir al nodo que lo rechazo`() {
+
+        val nodes = listOf(
+            ProcessingNode("node-1", "192.168.1.10", 50051),
+            ProcessingNode("node-2", "192.168.1.11", 50052),
+            ProcessingNode("node-3", "192.168.1.12", 50053)
+        )
+
+        val rejectedBlock = AssignedBlock(
+            node = nodes[0],
+            tasks = createTasks(5)
+        )
+
+        val blocks = distributor.reassign(rejectedBlock, nodes)
+
+        assertEquals(2, blocks.size)
+
+        assertTrue(
+            blocks.none {
+                it.node.nodeId == "node-1"
+            }
+        )
+
+        assertEquals(5, blocks.sumOf { it.tasks.size })
+    }
+
+    @Test
+    fun `bloque rechazado sin otros nodos no se reasigna`() {
+
+        val localNode = ProcessingNode(
+            nodeId = TaskDistributor.LOCAL_NODE_ID,
+            address = TaskDistributor.LOCAL_NODE_ID,
+            port = 0
+        )
+
+        val rejectedBlock = AssignedBlock(
+            node = localNode,
+            tasks = createTasks(5)
+        )
+
+        assertTrue(distributor.reassign(rejectedBlock, emptyList()).isEmpty())
+
+        assertTrue(distributor.reassign(rejectedBlock, listOf(localNode)).isEmpty())
+    }
 }

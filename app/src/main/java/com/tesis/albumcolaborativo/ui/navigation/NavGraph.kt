@@ -116,6 +116,7 @@ fun AppNavGraph(navController: NavHostController) {
         composable(Screen.AssignedBlock.route, arguments = albumArguments) { entry ->
             val album = entry.albumArgs()
             AssignedBlockScreen(
+                albumId = album.id,
                 albumName = album.name,
                 photoCount = album.photoCount,
                 // ~0.3 s por foto en MobileNetV3, mínimo 1 s

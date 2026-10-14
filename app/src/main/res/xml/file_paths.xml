@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Fotos tomadas con la cámara antes de preprocesarlas (CU-D-01) -->
+    <cache-path
+        name="camera"
+        path="camera/" />
+</paths>

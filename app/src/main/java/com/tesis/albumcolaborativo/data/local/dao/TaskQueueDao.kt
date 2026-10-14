@@ -37,4 +37,16 @@ interface TaskQueueDao {
         taskId: String,
         estado: String
     ): Int
+
+    @Query("""
+        UPDATE task_queue
+        SET estadoSincronizacion = :nuevoEstado
+        WHERE albumId = :albumId
+        AND estadoSincronizacion = :estadoActual
+    """)
+    suspend fun updateEstadoByAlbum(
+        albumId: String,
+        estadoActual: String,
+        nuevoEstado: String
+    ): Int
 }

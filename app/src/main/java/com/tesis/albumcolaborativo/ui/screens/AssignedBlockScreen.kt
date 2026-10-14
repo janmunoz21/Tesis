@@ -1,26 +1,38 @@
 package com.tesis.albumcolaborativo.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tesis.albumcolaborativo.ui.viewmodels.AssignedBlockViewModel
 
 @Composable
 fun AssignedBlockScreen(
+    albumId: String,
     albumName: String = "Álbum Evento Javeriana",
     photoCount: Int = 10,
     estimatedTimeSec: Int = 3,
     onAcceptBlock: () -> Unit = {},
-    onRejectBlock: () -> Unit = {}
+    // Se llama cuando el bloque ya fue reasignado o devuelto a la cola
+    onRejectBlock: () -> Unit = {},
+    viewModel: AssignedBlockViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+    val isRejecting by viewModel.isRejecting.collectAsState()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -81,18 +93,35 @@ fun AssignedBlockScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
-                        onClick = onRejectBlock,
+                        onClick = {
+                            // Sin descubrimiento P2P todavía: no hay otros nodos a quién reasignar
+                            viewModel.rejectBlock(albumId, nodes = emptyList()) { result ->
+                                val message = result.fold(
+                                    onSuccess = { blocks ->
+                                        if (blocks.isEmpty())
+                                            "Bloque devuelto a la cola: se reasignará cuando haya otro nodo disponible"
+                                        else
+                                            "Bloque reasignado a ${blocks.size} nodo(s)"
+                                    },
+                                    onFailure = { "Error al rechazar el bloque: ${it.message}" }
+                                )
+                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                if (result.isSuccess) onRejectBlock()
+                            }
+                        },
+                        enabled = !isRejecting,
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF5252))
                     ) {
-                        Text("Rechazar")
+                        Text(if (isRejecting) "Reasignando..." else "Rechazar")
                     }
 
                     Button(
                         onClick = onAcceptBlock,
+                        enabled = !isRejecting,
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp),

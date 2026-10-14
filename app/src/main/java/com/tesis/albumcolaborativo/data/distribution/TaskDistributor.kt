@@ -4,6 +4,10 @@ import com.tesis.albumcolaborativo.data.local.entities.TaskQueueEntity
 
 class TaskDistributor {
 
+    companion object {
+        const val LOCAL_NODE_ID = "LOCAL"
+    }
+
     fun distribute(
         tasks: List<TaskQueueEntity>,
         nodes: List<ProcessingNode>
@@ -20,8 +24,8 @@ class TaskDistributor {
         if (availableNodes.isEmpty()) {
 
             val localNode = ProcessingNode(
-                nodeId = "LOCAL",
-                address = "LOCAL",
+                nodeId = LOCAL_NODE_ID,
+                address = LOCAL_NODE_ID,
                 port = 0,
                 available = true
             )
@@ -69,5 +73,29 @@ class TaskDistributor {
         }
 
         return blocks
+    }
+
+    /**
+     * CU-D-03: reasigna un bloque rechazado entre los demás nodos disponibles.
+     * A diferencia de distribute, nunca devuelve el bloque al nodo que lo rechazó:
+     * si no hay otro nodo, retorna una lista vacía y las tareas quedan pendientes.
+     */
+    fun reassign(
+        rejectedBlock: AssignedBlock,
+        nodes: List<ProcessingNode>
+    ): List<AssignedBlock> {
+
+        val candidates = nodes.filter {
+            it.available && it.nodeId != rejectedBlock.node.nodeId
+        }
+
+        if (candidates.isEmpty()) {
+            return emptyList()
+        }
+
+        return distribute(
+            tasks = rejectedBlock.tasks,
+            nodes = candidates
+        ).filter { it.tasks.isNotEmpty() }
     }
 }

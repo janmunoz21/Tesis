@@ -30,4 +30,20 @@ class TaskQueueRepository(
             estado = status
         )
     }
+
+    suspend fun getAssignedTasks(albumId: String): List<TaskQueueEntity> {
+        return taskQueueDao.getTasksByEstado(
+            albumId = albumId,
+            estado = "ASIGNADA"
+        )
+    }
+
+    // CU-D-03: el bloque rechazado vuelve a la cola para la próxima distribución
+    suspend fun releaseAssignedTasks(albumId: String): Int {
+        return taskQueueDao.updateEstadoByAlbum(
+            albumId = albumId,
+            estadoActual = "ASIGNADA",
+            nuevoEstado = "PENDIENTE"
+        )
+    }
 }

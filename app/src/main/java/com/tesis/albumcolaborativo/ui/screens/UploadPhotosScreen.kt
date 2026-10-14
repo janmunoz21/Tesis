@@ -1,8 +1,9 @@
 package com.tesis.albumcolaborativo.ui.screens
 
+import android.content.ActivityNotFoundException
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -14,17 +15,21 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.tesis.albumcolaborativo.data.utils.CameraImageFiles
 import com.tesis.albumcolaborativo.ui.viewmodels.UploadPhotosViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,6 +53,23 @@ fun UploadPhotosScreen(
         }
     }
 
+    // Cámara (SRS CU-D-01): la foto se guarda en caché vía FileProvider
+    val context = LocalContext.current
+    var pendingCameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { saved ->
+        pendingCameraUri?.let { uri ->
+            if (saved) {
+                viewModel.addPhotos(listOf(uri))
+            } else {
+                // Captura cancelada: borrar el archivo temporal vacío
+                context.contentResolver.delete(uri, null, null)
+            }
+        }
+        pendingCameraUri = null
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -65,15 +87,39 @@ fun UploadPhotosScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    photoPickerLauncher.launch(
-                        arrayOf("image/*")
-                    )
-                },
-                containerColor = Color(0xFF64FFDA)
+            val canAddMore = uiState.selectedUris.size < 200 && !uiState.isProcessing
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Agregar fotos", tint = Color.Black)
+                SmallFloatingActionButton(
+                    onClick = {
+                        if (!canAddMore) return@SmallFloatingActionButton
+                        val uri = CameraImageFiles.createImageUri(context)
+                        pendingCameraUri = uri
+                        try {
+                            cameraLauncher.launch(uri)
+                        } catch (e: ActivityNotFoundException) {
+                            pendingCameraUri = null
+                            context.contentResolver.delete(uri, null, null)
+                            Toast.makeText(context, "No hay una app de cámara disponible", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    containerColor = Color(0xFFB388FF)
+                ) {
+                    Icon(Icons.Default.PhotoCamera, contentDescription = "Tomar foto", tint = Color.Black)
+                }
+                FloatingActionButton(
+                    onClick = {
+                        if (!canAddMore) return@FloatingActionButton
+                        photoPickerLauncher.launch(
+                            arrayOf("image/*")
+                        )
+                    },
+                    containerColor = Color(0xFF64FFDA)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Agregar fotos", tint = Color.Black)
+                }
             }
         },
         containerColor = Color(0xFF121212)
