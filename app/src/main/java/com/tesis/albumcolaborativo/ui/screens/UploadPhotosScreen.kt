@@ -143,6 +143,15 @@ fun UploadPhotosScreen(
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
+                uiState.errorMessage?.let { message ->
+                    Text(
+                        text = message,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                }
+
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),

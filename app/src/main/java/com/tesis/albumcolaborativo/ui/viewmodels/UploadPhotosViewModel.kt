@@ -2,6 +2,7 @@ package com.tesis.albumcolaborativo.ui.viewmodels
 
 import android.app.Application
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tesis.albumcolaborativo.data.local.AppDatabase
@@ -45,17 +46,54 @@ class UploadPhotosViewModel(application: Application) : AndroidViewModel(applica
         TaskQueueRepository(database.taskQueueDao())
 
     fun addPhotos(uris: List<Uri>) {
+        // SRS CU-D-01: se descartan las fotos que superan el tamaño máximo permitido
+        val (validUris, oversizedUris) = uris.partition { uri ->
+            val size = getFileSize(uri)
+            size == null || size <= MAX_PHOTO_SIZE_BYTES
+        }
+
         _uiState.update { state ->
             // SRS CU-D-01: máximo 200 fotos por lote
-            val updatedList = (state.selectedUris + uris)
+            val updatedList = (state.selectedUris + validUris)
                 .distinct()
                 .take(200)
 
             state.copy(
                 selectedUris = updatedList,
-                errorMessage = null
+                errorMessage = if (oversizedUris.isEmpty()) null else oversizedMessage(oversizedUris.size)
             )
         }
+    }
+
+    private fun getFileSize(uri: Uri): Long? {
+        return try {
+            getApplication<Application>().contentResolver
+                .query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)
+                ?.use { cursor ->
+                    val index = cursor.getColumnIndex(OpenableColumns.SIZE)
+                    if (cursor.moveToFirst() && index >= 0 && !cursor.isNull(index)) {
+                        cursor.getLong(index)
+                    } else {
+                        null
+                    }
+                }
+        } catch (e: Exception) {
+            // Si el proveedor no informa el tamaño, la foto no se descarta
+            null
+        }
+    }
+
+    private fun oversizedMessage(count: Int): String {
+        val limitMb = MAX_PHOTO_SIZE_BYTES / (1024 * 1024)
+        return if (count == 1) {
+            "1 foto supera el límite de $limitMb MB y no se agregó."
+        } else {
+            "$count fotos superan el límite de $limitMb MB y no se agregaron."
+        }
+    }
+
+    companion object {
+        const val MAX_PHOTO_SIZE_BYTES = 20L * 1024 * 1024
     }
 
     fun removePhoto(uri: Uri) {

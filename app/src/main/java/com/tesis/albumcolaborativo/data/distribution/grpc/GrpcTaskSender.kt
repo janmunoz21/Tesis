@@ -5,8 +5,14 @@ import io.grpc.ManagedChannel
 import io.grpc.okhttp.OkHttpChannelBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.concurrent.TimeUnit
 
 class GrpcTaskSender {
+
+    companion object {
+        // Si el nodo no responde en este tiempo, la llamada falla con DEADLINE_EXCEEDED
+        const val SEND_TIMEOUT_SECONDS = 10L
+    }
 
     suspend fun sendBlock(
         block: AssignedBlock
@@ -43,6 +49,7 @@ class GrpcTaskSender {
             val stub =
                 TaskTransferServiceGrpc
                     .newBlockingStub(channel)
+                    .withDeadlineAfter(SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
 
             stub.sendTaskBlock(request)
 

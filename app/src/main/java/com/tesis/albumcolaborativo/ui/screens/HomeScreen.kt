@@ -18,28 +18,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tesis.albumcolaborativo.data.model.Album
 import com.tesis.albumcolaborativo.ui.components.BottomNavigationBar
-
-data class Album(
-    val title: String,
-    val participants: Int,
-    val date: String,
-    val photoCount: Int,
-    val progress: Float
-)
+import java.util.concurrent.TimeUnit
 
 @Composable
 fun HomeScreen(
+    albums: List<Album> = emptyList(),
     onNavigateToCreateAlbum: () -> Unit = {},
     onNavigateToP2P: () -> Unit = {},
     onNavigateToAlbumDetail: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {}
 ) {
-    val albums = listOf(
-        Album("Vacaciones Cartagena", 4, "Hace 2 días", 142, 1.0f),
-        Album("Cumpleaños Ana", 6, "Procesando...", 87, 0.4f)
-    )
-
     Scaffold(
         bottomBar = { 
             BottomNavigationBar(
@@ -69,7 +59,7 @@ fun HomeScreen(
                 .padding(padding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            HeaderSection(onProfileClick = onNavigateToProfile)
+            HeaderSection(activeAlbums = albums.size, onProfileClick = onNavigateToProfile)
             
             LazyColumn(
                 modifier = Modifier
@@ -86,7 +76,17 @@ fun HomeScreen(
                     )
                 }
                 
-                items(albums) { album ->
+                if (albums.isEmpty()) {
+                    item {
+                        Text(
+                            text = "Aún no tienes álbumes. Crea uno para empezar.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
+
+                items(albums, key = { it.id }) { album ->
                     AlbumCard(album, onClick = onNavigateToAlbumDetail)
                 }
                 
@@ -99,7 +99,7 @@ fun HomeScreen(
 }
 
 @Composable
-fun HeaderSection(onProfileClick: () -> Unit) {
+fun HeaderSection(activeAlbums: Int, onProfileClick: () -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.fillMaxWidth(),
@@ -136,7 +136,7 @@ fun HeaderSection(onProfileClick: () -> Unit) {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "2 álbumes activos",
+                    text = if (activeAlbums == 1) "1 álbum activo" else "$activeAlbums álbumes activos",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.8f)
                 )
@@ -194,7 +194,7 @@ fun AlbumCard(album: Album, onClick: () -> Unit) {
                 }
                 
                 Text(
-                    text = "${album.participants} participantes - ${album.date}",
+                    text = "${participantsLabel(album.participants)} - ${statusLabel(album)} - Código ${album.inviteCode}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.outline
                 )
@@ -213,5 +213,18 @@ fun AlbumCard(album: Album, onClick: () -> Unit) {
             
             Text("fotos", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
         }
+    }
+}
+
+private fun participantsLabel(count: Int): String =
+    if (count == 1) "1 participante" else "$count participantes"
+
+private fun statusLabel(album: Album): String {
+    if (album.progress in 0.0001f..0.9999f) return "Procesando..."
+    val days = TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis() - album.createdAt)
+    return when {
+        days < 1 -> "Hoy"
+        days == 1L -> "Ayer"
+        else -> "Hace $days días"
     }
 }

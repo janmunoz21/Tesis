@@ -71,7 +71,6 @@ dependencies {
     implementation("io.grpc:grpc-okhttp:1.84.0")
     implementation("io.grpc:grpc-protobuf-lite:1.84.0")
     implementation("io.grpc:grpc-stub:1.84.0")
-    implementation("io.grpc:grpc-netty-shaded:1.84.0")
 
     // Tests
     testImplementation(libs.junit)

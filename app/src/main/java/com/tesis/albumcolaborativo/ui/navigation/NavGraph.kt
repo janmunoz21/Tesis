@@ -2,6 +2,9 @@ package com.tesis.albumcolaborativo.ui.navigation
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -9,7 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.tesis.albumcolaborativo.ui.screens.*
-import java.util.UUID
+import com.tesis.albumcolaborativo.ui.viewmodels.AlbumViewModel
 
 sealed class Screen(val route: String) {
     object Welcome : Screen("welcome")
@@ -54,6 +57,10 @@ private fun NavBackStackEntry.albumArgs(): AlbumArgs {
 
 @Composable
 fun AppNavGraph(navController: NavHostController) {
+    // Creado fuera del NavHost para que todas las pantallas compartan la misma instancia
+    val albumViewModel: AlbumViewModel = viewModel()
+    val albums by albumViewModel.albums.collectAsState()
+
     NavHost(
         navController = navController,
         startDestination = Screen.Welcome.route
@@ -88,6 +95,7 @@ fun AppNavGraph(navController: NavHostController) {
         }
         composable(Screen.Home.route) {
             HomeScreen(
+                albums = albums,
                 onNavigateToCreateAlbum = { navController.navigate(Screen.CreateAlbum.route) },
                 onNavigateToP2P = { navController.navigate(Screen.GroupP2P.route) },
                 onNavigateToAlbumDetail = { navController.navigate(Screen.AlbumDetail.route) },
@@ -97,9 +105,12 @@ fun AppNavGraph(navController: NavHostController) {
         composable(Screen.CreateAlbum.route) {
             CreateAlbumScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToUpload = { albumName ->
-                    val album = AlbumArgs(UUID.randomUUID().toString(), albumName)
-                    navController.navigate(Screen.UploadPhotos.createRoute(album))
+                onCreateAlbum = { name, description ->
+                    albumViewModel.createAlbum(name, description)?.let { album ->
+                        navController.navigate(
+                            Screen.UploadPhotos.createRoute(AlbumArgs(album.id, album.title))
+                        )
+                    }
                 }
             )
         }

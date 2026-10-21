@@ -1,7 +1,9 @@
 package com.tesis.albumcolaborativo.data.distribution.grpc
 
+import io.grpc.InsecureServerCredentials
 import io.grpc.Server
-import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
+import io.grpc.okhttp.OkHttpServerBuilder
+import java.util.concurrent.TimeUnit
 
 class GrpcServerManager {
 
@@ -15,8 +17,9 @@ class GrpcServerManager {
             return
         }
 
-        server = NettyServerBuilder
-            .forPort(port)
+        // OkHttp en lugar de Netty: Netty no tiene soporte oficial en Android
+        server = OkHttpServerBuilder
+            .forPort(port, InsecureServerCredentials.create())
             .addService(receiver)
             .build()
             .start()
@@ -27,6 +30,8 @@ class GrpcServerManager {
     fun stop() {
 
         server?.shutdown()
+        // Espera breve para liberar el puerto antes de un posible reinicio
+        server?.awaitTermination(500, TimeUnit.MILLISECONDS)
         server = null
 
         println("Servidor gRPC detenido")
