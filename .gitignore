@@ -1,0 +1,21 @@
+# Android
+android/**/build/
+android/.gradle/
+android/.idea/
+android/local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# Backend
+backend/build/
+backend/.gradle/
+backend/target/
+backend/.idea/
+backend/src/main/resources/application-local.properties
+
+# General
+.env
+*.log
+.DS_Store
