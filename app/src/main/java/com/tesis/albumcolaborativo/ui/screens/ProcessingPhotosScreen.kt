@@ -1,28 +1,61 @@
+
 package com.tesis.albumcolaborativo.ui.screens
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.HourglassEmpty
-import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tesis.albumcolaborativo.ui.viewmodels.ProcessingPhotosViewModel
 
+private val Blue = Color(0xFF2196F3)
+private val Green = Color(0xFF4CAF50)
+private val DarkBackground = Color(0xFF121212)
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProcessingPhotosScreen(onNavigateBack: () -> Unit) {
-    Scaffold { padding ->
+fun ProcessingPhotosScreen(
+    albumId: String,
+    onNavigateBack: () -> Unit = {},
+    onProcessingComplete: () -> Unit = {},
+    viewModel: ProcessingPhotosViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(albumId) {
+        viewModel.observeAlbum(albumId)
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Procesamiento Distribuido P2P") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver"
+                        )
+                    }
+                }
+            )
+        }
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -30,114 +63,221 @@ fun ProcessingPhotosScreen(onNavigateBack: () -> Unit) {
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(48.dp))
-            
+            Spacer(Modifier.height(32.dp))
+
             Text(
-                text = "Clasificando tu bloque...",
+                text = when {
+                    uiState.totalTasks == 0 -> "No hay tareas en este álbum"
+                    uiState.isComplete -> "Procesamiento completado"
+                    uiState.completedTasks > 0 -> "Procesamiento en curso..."
+                    else -> "Tareas preparadas para procesar"
+                },
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
+
             Text(
-                text = "3 dispositivos procesando en paralelo",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
+                text = "Álbum: $albumId",
+                color = Color.Gray,
+                style = MaterialTheme.typography.bodySmall
             )
 
-            Spacer(modifier = Modifier.height(64.dp))
+            Spacer(Modifier.height(40.dp))
 
-            // Circular Visualization
             Box(
-                modifier = Modifier.size(240.dp),
+                modifier = Modifier.size(220.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Dashed Circle Background
-                Canvas(modifier = Modifier.fillMaxSize()) {
+                Canvas(Modifier.fillMaxSize()) {
                     drawCircle(
                         color = Color.LightGray,
-                        style = Stroke(width = 2f, pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f))
+                        style = Stroke(
+                            width = 2f,
+                            pathEffect = PathEffect.dashPathEffect(
+                                floatArrayOf(10f, 10f),
+                                0f
+                            )
+                        )
                     )
                 }
 
-                // Central Node
                 Surface(
                     modifier = Modifier.size(80.dp),
                     shape = CircleShape,
                     color = Color.White,
-                    border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF2196F3))
+                    border = androidx.compose.foundation.BorderStroke(
+                        2.dp,
+                        Blue
+                    )
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text("📸", fontSize = 32.sp)
                     }
                 }
-
-                // Surrounding Nodes (Placeholders)
-                val nodes = listOf("✓", "JM", "AC", "DV", "MR")
-
             }
 
-            Spacer(modifier = Modifier.height(64.dp))
+            Spacer(Modifier.height(40.dp))
 
-            // Progress Section
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Progreso total del álbum", fontWeight = FontWeight.Bold)
-                Text("72%", color = Color(0xFF2196F3), fontWeight = FontWeight.Bold)
+                Text(
+                    "Progreso del álbum",
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "${uiState.progressPercent}%",
+                    color = Blue,
+                    fontWeight = FontWeight.Bold
+                )
             }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
+
+            Spacer(Modifier.height(8.dp))
+
             LinearProgressIndicator(
-                progress = { 0.72f },
+                progress = { uiState.progress },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(12.dp)
                     .clip(CircleShape),
-                color = Color(0xFF4CAF50),
+                color = Green,
                 trackColor = Color(0xFFE8F5E9)
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(Modifier.height(24.dp))
 
-            // Participants List
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
                 color = Color(0xFFF8F9FA)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    ParticipantProgress("Juan M. (tú)", "30/30 fotos", true, Color(0xFF4CAF50))
-                    ParticipantProgress("Andrés C.", "18/30 fotos", false, Color(0xFF2196F3))
-                    ParticipantProgress("Diego V.", "26/30 fotos", false, Color(0xFF2196F3))
-                    ParticipantProgress("Marco R.", "0/30 fotos", false, Color.Gray, isWaiting = true)
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        "Estado real de las tareas",
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+
+                    StatusRow(
+                        label = "Total de fotografías",
+                        count = uiState.totalTasks,
+                        color = Color.Black
+                    )
+
+                    StatusRow(
+                        label = "Pendientes",
+                        count = uiState.pendingTasks,
+                        color = Color(0xFFED9D25)
+                    )
+
+                    StatusRow(
+                        label = "Asignadas",
+                        count = uiState.assignedTasks,
+                        color = Blue
+                    )
+
+                    StatusRow(
+                        label = "Completadas",
+                        count = uiState.completedTasks,
+                        color = Green
+                    )
+
+                    if (uiState.otherTasks > 0) {
+                        StatusRow(
+                            label = "Otros estados",
+                            count = uiState.otherTasks,
+                            color = Color.Gray
+                        )
+                    }
                 }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Text(
+                text = when {
+                    uiState.totalTasks == 0 ->
+                        "No se encontraron tareas guardadas para este álbum."
+
+                    uiState.isComplete ->
+                        "Todas las tareas figuran como completadas."
+
+                    else ->
+                        "La asignación de una tarea no significa que su imagen ya haya sido clasificada. El progreso aumentará cuando se registre un estado de completado."
+                },
+                color = Color.Gray,
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            Button(
+                onClick = onProcessingComplete,
+                enabled = uiState.isComplete,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Blue
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = null
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Ver Álbum Clasificado",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
 }
 
 @Composable
-fun ParticipantProgress(name: String, status: String, isDone: Boolean, color: Color, isWaiting: Boolean = false) {
+private fun StatusRow(
+    label: String,
+    count: Int,
+    color: Color
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (isDone) {
-            Icon(Icons.Default.Check, contentDescription = null, tint = color, modifier = Modifier.size(20.dp).background(color.copy(alpha = 0.2f), CircleShape).padding(2.dp))
-        } else if (isWaiting) {
-            Icon(Icons.Default.HourglassEmpty, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
-        } else {
-            Box(modifier = Modifier.size(10.dp).background(color, CircleShape))
+        if (label == "Completadas" && count > 0) {
+            Icon(
+                Icons.Default.Check,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(20.dp)
+            )
+        } else if (label == "Pendientes" && count > 0) {
+            Icon(
+                Icons.Default.HourglassEmpty,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(20.dp)
+            )
         }
-        
-        Spacer(modifier = Modifier.width(12.dp))
-        
-        Text(name, modifier = Modifier.weight(1f), color = if (isWaiting) Color.Gray else Color.Black)
-        
-        Text(status, fontWeight = FontWeight.Bold, color = color)
+
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f),
+            color = Color.Black
+        )
+
+        Text(
+            text = count.toString(),
+            color = color,
+            fontWeight = FontWeight.Bold
+        )
     }
 }

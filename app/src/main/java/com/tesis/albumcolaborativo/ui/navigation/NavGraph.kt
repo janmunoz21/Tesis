@@ -1,10 +1,15 @@
 package com.tesis.albumcolaborativo.ui.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.tesis.albumcolaborativo.ui.screens.*
+import java.util.UUID
 
 sealed class Screen(val route: String) {
     object Welcome : Screen("welcome")
@@ -12,14 +17,39 @@ sealed class Screen(val route: String) {
     object Register : Screen("register")
     object Home : Screen("home")
     object CreateAlbum : Screen("create_album")
-    object UploadPhotos : Screen("upload_photos")
-    object AssignedBlock : Screen("assigned_block")
-    object ProcessingPhotos : Screen("processing_photos")
+    object UploadPhotos : AlbumFlowScreen("upload_photos")
+    object AssignedBlock : AlbumFlowScreen("assigned_block")
+    object ProcessingPhotos : AlbumFlowScreen("processing_photos")
+    object AlbumReady : AlbumFlowScreen("album_ready")
     object GroupP2P : Screen("group_p2p")
     object AlbumDetail : Screen("album_detail")
     object PhotoDetail : Screen("photo_detail")
     object Profile : Screen("profile")
     object DownloadAlbum : Screen("download_album")
+}
+
+// Datos del álbum que viajan por el flujo Subir → Bloque asignado → Procesamiento → Álbum listo
+data class AlbumArgs(val id: String, val name: String, val photoCount: Int = 0)
+
+sealed class AlbumFlowScreen(private val base: String) :
+    Screen("$base/{albumId}?albumName={albumName}&photoCount={photoCount}") {
+    fun createRoute(album: AlbumArgs) =
+        "$base/${album.id}?albumName=${Uri.encode(album.name)}&photoCount=${album.photoCount}"
+}
+
+private val albumArguments = listOf(
+    navArgument("albumId") { type = NavType.StringType },
+    navArgument("albumName") { type = NavType.StringType; defaultValue = "" },
+    navArgument("photoCount") { type = NavType.IntType; defaultValue = 0 }
+)
+
+private fun NavBackStackEntry.albumArgs(): AlbumArgs {
+    val args = requireNotNull(arguments)
+    return AlbumArgs(
+        id = requireNotNull(args.getString("albumId")),
+        name = args.getString("albumName").orEmpty(),
+        photoCount = args.getInt("photoCount")
+    )
 }
 
 @Composable
@@ -67,25 +97,61 @@ fun AppNavGraph(navController: NavHostController) {
         composable(Screen.CreateAlbum.route) {
             CreateAlbumScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToUpload = { navController.navigate(Screen.UploadPhotos.route) }
+                onNavigateToUpload = { albumName ->
+                    val album = AlbumArgs(UUID.randomUUID().toString(), albumName)
+                    navController.navigate(Screen.UploadPhotos.createRoute(album))
+                }
             )
         }
-        composable(Screen.UploadPhotos.route) {
+        composable(Screen.UploadPhotos.route, arguments = albumArguments) { entry ->
+            val album = entry.albumArgs()
             UploadPhotosScreen(
+                albumId = album.id,
                 onNavigateBack = { navController.popBackStack() },
-                onContinue = { navController.navigate(Screen.AssignedBlock.route) }
+                onBlockAssigned = { photoCount ->
+                    navController.navigate(Screen.AssignedBlock.createRoute(album.copy(photoCount = photoCount)))
+                }
             )
         }
-        composable(Screen.AssignedBlock.route) {
+        composable(Screen.AssignedBlock.route, arguments = albumArguments) { entry ->
+            val album = entry.albumArgs()
             AssignedBlockScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onAcceptAndProcess = { navController.navigate(Screen.ProcessingPhotos.route) },
-                onNavigateToProcessing = { navController.navigate(Screen.ProcessingPhotos.route) }
+                albumName = album.name,
+                photoCount = album.photoCount,
+                // ~0.3 s por foto en MobileNetV3, mínimo 1 s
+                estimatedTimeSec = maxOf(1, (album.photoCount * 3 + 9) / 10),
+                onAcceptBlock = {
+                    navController.navigate(Screen.ProcessingPhotos.createRoute(album)) {
+                        popUpTo(Screen.AssignedBlock.route) { inclusive = true }
+                    }
+                },
+                onRejectBlock = {
+                    navController.popBackStack(Screen.Home.route, inclusive = false)
+                }
             )
         }
-        composable(Screen.ProcessingPhotos.route) {
+        composable(Screen.ProcessingPhotos.route, arguments = albumArguments) { entry ->
+            val album = entry.albumArgs()
             ProcessingPhotosScreen(
-                onNavigateBack = { navController.popBackStack() }
+                albumId = album.id,
+                onNavigateBack = { navController.popBackStack() },
+                onProcessingComplete = {
+                    navController.navigate(Screen.AlbumReady.createRoute(album)) {
+                        popUpTo(Screen.Home.route) { inclusive = false }
+                    }
+                }
+            )
+        }
+        composable(Screen.AlbumReady.route, arguments = albumArguments) { entry ->
+            val album = entry.albumArgs()
+            AlbumReadyScreen(
+                albumName = album.name,
+                photoCount = album.photoCount,
+                onViewAlbum = {
+                    navController.navigate(Screen.AlbumDetail.route) {
+                        popUpTo(Screen.Home.route) { inclusive = false }
+                    }
+                }
             )
         }
         composable(Screen.GroupP2P.route) {
