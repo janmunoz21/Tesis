@@ -1,6 +1,5 @@
 package com.tesis.albumcolaborativo.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,7 +14,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun AlbumReadyScreen() {
+fun AlbumReadyScreen(
+    albumName: String = "Vacaciones Cartagena",
+    photoCount: Int = 142,
+    onViewAlbum: () -> Unit = {}
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -46,7 +49,7 @@ fun AlbumReadyScreen() {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Vacaciones Cartagena está disponible para todos",
+            text = "$albumName está disponible para todos",
             style = MaterialTheme.typography.bodyMedium,
             color = Color.Gray,
             textAlign = TextAlign.Center
@@ -54,7 +57,7 @@ fun AlbumReadyScreen() {
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        // Resumen Card
+        // Tarjeta Resumen
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
@@ -62,33 +65,31 @@ fun AlbumReadyScreen() {
             color = Color.White
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
-                InfoRow("Fotos totales", "142 fotos", valueColor = Color(0xFF2196F3))
+                AlbumInfoRow("Fotos totales", "$photoCount fotos", valueColor = Color(0xFF2196F3))
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
-                InfoRow("Categorías detectadas", "8 escenas")
+                AlbumInfoRow("Clasificación IA", "MobileNetV3")
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
-                InfoRow("Procesado por", "4 dispositivos")
-                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
-                InfoRow("Tiempo total", "1 min 12 seg", valueColor = Color(0xFF4CAF50))
+                AlbumInfoRow("Estado de red", "Completado")
             }
         }
 
         Spacer(modifier = Modifier.height(48.dp))
 
         Button(
-            onClick = { /* TODO */ },
+            onClick = onViewAlbum,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(28.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
         ) {
-            Text("Ver álbum →", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text("Ver álbum →", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedButton(
-            onClick = { /* TODO */ },
+            onClick = { /* Lógica para compartir enlace */ },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -102,13 +103,13 @@ fun AlbumReadyScreen() {
 }
 
 @Composable
-private fun InfoRow(label: String, value: String) {
+private fun AlbumInfoRow(label: String, value: String, valueColor: Color = Color.Unspecified) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, color = Color.Gray, fontSize = 14.sp)
-        Text(value, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text(value, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = valueColor)
     }
 }

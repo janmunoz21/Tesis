@@ -51,5 +51,18 @@ class TokenManager(context: Context) {
         return prefs.getString("user_email", null) ?: "usuario@correo.com"
     }
 
+    fun obtenerUsuarioId(): String? {
+        val token = obtenerToken() ?: return null
+        return try {
+            val parts = token.replace("\"", "").trim().split(".")
+            if (parts.size > 1) {
+                val payloadJson = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE))
+                val jsonObject = org.json.JSONObject(payloadJson)
+                jsonObject.optString("sub", null)
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
 
 }

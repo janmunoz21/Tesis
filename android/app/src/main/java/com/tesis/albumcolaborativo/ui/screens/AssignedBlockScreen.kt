@@ -15,19 +15,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.android.gms.common.util.CollectionUtils.listOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AssignedBlockScreen(
+    albumName: String = "Vacaciones Cartagena",
+    photoCount: Int = 30,
+    estimatedTimeSec: Int = 45,
     onNavigateBack: () -> Unit,
-    onNavigateToProcessing: () -> Unit,
     onAcceptAndProcess: () -> Unit
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mi bloque", fontWeight = FontWeight.Bold) },
+                title = { Text("Bloque Asignado", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
@@ -42,7 +43,9 @@ fun AssignedBlockScreen(
                 .padding(padding)
                 .padding(horizontal = 24.dp)
         ) {
-            // Info Box
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Box Informativa
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = Color(0xFFE3F2FD).copy(alpha = 0.5f),
@@ -58,7 +61,7 @@ fun AssignedBlockScreen(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "El servidor asignó a tu dispositivo un bloque de 30 fotos para procesar del álbum Vacaciones Cartagena.",
+                        text = "Se ha asignado a tu dispositivo un bloque de $photoCount fotos para clasificar localmente del álbum '$albumName'.",
                         fontSize = 14.sp,
                         color = Color(0xFF1976D2),
                         lineHeight = 20.sp
@@ -68,7 +71,7 @@ fun AssignedBlockScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Stats Card
+            // Tarjeta de Detalles del Bloque
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -76,36 +79,34 @@ fun AssignedBlockScreen(
                 color = Color.White
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    StatRow("Álbum", "Vacaciones Cartagena", isTitle = true)
+                    StatRow("Álbum", albumName, isTitle = true)
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
-                    StatRow("Fotos en tu bloque", "30 fotos", valueColor = Color(0xFF2196F3))
+                    StatRow("Fotos en tu bloque", "$photoCount fotos", valueColor = Color(0xFF2196F3))
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
-                    StatRow("Tamaño total", "48 MB")
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
-                    StatRow("Tiempo estimado", "~45 seg")
+                    StatRow("Tiempo estimado", "~$estimatedTimeSec seg")
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                "Fotos asignadas (muestra)",
+                "Muestra del bloque",
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Sample Grid
-            val emojis = listOf("🏖️", "🌅", "👨‍👩‍👧", "🍹", "🌊")
+            // Cuadrícula de vista previa
+            val sampleEmojis = listOf("🏖️", "🌅", "👨‍👩‍👧", "🍹", "🌊")
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 modifier = Modifier.weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(emojis.size) { index ->
-                    SamplePhotoItem(emojis[index])
+                items(sampleEmojis.size) { index ->
+                    SamplePhotoItem(sampleEmojis[index])
                 }
                 item {
                     Surface(
@@ -114,13 +115,18 @@ fun AssignedBlockScreen(
                         color = Color(0xFFE3F2FD)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Text("+25", color = Color(0xFF2196F3), fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text(
+                                "+${if (photoCount > 5) photoCount - 5 else 0}",
+                                color = Color(0xFF2196F3),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp
+                            )
                         }
                     }
                 }
             }
 
-            // Bottom Actions
+            // Acciones Inferiores
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -129,7 +135,9 @@ fun AssignedBlockScreen(
             ) {
                 OutlinedButton(
                     onClick = onNavigateBack,
-                    modifier = Modifier.weight(1f).height(56.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp),
                     shape = RoundedCornerShape(28.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEA4335)),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEA4335))
@@ -137,11 +145,14 @@ fun AssignedBlockScreen(
                     Text("Rechazar", fontWeight = FontWeight.Bold)
                 }
                 Button(
-                    onClick = onNavigateToProcessing,
-                    modifier = Modifier.weight(1.5f).height(56.dp),
-                    shape = RoundedCornerShape(28.dp)
+                    onClick = onAcceptAndProcess,
+                    modifier = Modifier
+                        .weight(1.5f)
+                        .height(56.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
                 ) {
-                    Text("Aceptar y procesar", fontWeight = FontWeight.Bold)
+                    Text("Aceptar y procesar", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
         }

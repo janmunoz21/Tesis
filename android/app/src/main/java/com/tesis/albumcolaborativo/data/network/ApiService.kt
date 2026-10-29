@@ -81,5 +81,11 @@ interface ApiService {
         @Body request: RemoverParticipanteRequest
     ): Response<Map<String, String>>
 
+    // --- MÓDULO D: SINCRONIZACIÓN DE PROCESAMIENTO E IA ---
+    @POST("api/albums/{id}/sincronizar-resultados")
+    suspend fun sincronizarResultados(
+        @Path("id") albumId: String,
+        @Body request: SyncAlbumResultsDto
+    ): Response<Map<String, String>>
 
 }

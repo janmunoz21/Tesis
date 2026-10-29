@@ -3,14 +3,22 @@ package com.tesis.albumcolaborativo.backend.model
 import jakarta.persistence.*
 import java.util.UUID
 
-/** Mapeo mínimo de fotos_metadatos: por ahora solo se necesita contar las fotos de un álbum. */
 @Entity
 @Table(name = "fotos_metadatos")
 class FotoMetadato(
     @Id
-    @Column(name = "id")
-    val id: UUID = UUID.randomUUID(),
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    val id: UUID? = null,
 
     @Column(name = "album_id", nullable = false)
-    val albumId: UUID
+    val albumId: UUID,
+
+    @Column(name = "propietario_id", nullable = false)
+    val propietarioId: UUID,
+
+    @Column(name = "etiqueta_consolidada")
+    var etiquetaConsolidada: String? = null,
+
+    @Column(name = "porcentaje_confianza")
+    var porcentajeConfianza: Float? = null
 )

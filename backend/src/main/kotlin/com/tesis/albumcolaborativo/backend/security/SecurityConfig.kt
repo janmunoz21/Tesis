@@ -26,8 +26,9 @@ class SecurityConfig(private val jwtAuthFilter: JwtAuthFilter) {
             .cors { }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { auth ->
-                auth.requestMatchers("/api/auth/**").permitAll() // Login, Registro, Recuperación
-                auth.requestMatchers("/api/usuarios/**").authenticated() // Edición de perfil y contraseña
+                auth.requestMatchers("/api/auth/**").permitAll()
+                auth.requestMatchers("/api/usuarios/**").authenticated()
+                auth.requestMatchers("/api/albumes/**", "/api/albums/**").authenticated()
                 auth.anyRequest().authenticated()
             }
             .exceptionHandling { it.authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)) }

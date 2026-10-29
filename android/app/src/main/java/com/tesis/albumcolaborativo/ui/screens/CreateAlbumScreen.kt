@@ -25,13 +25,12 @@ import com.tesis.albumcolaborativo.ui.viewmodel.AlbumViewModel
 fun CreateAlbumScreen(
     viewModel: AlbumViewModel = viewModel(),
     onNavigateBack: () -> Unit,
-    onNavigateToUpload: () -> Unit = {}
+    onNavigateToUpload: (albumName: String) -> Unit = {}
 ) {
-    var albumName by remember { mutableStateOf("") }
+    var albumName by remember { mutableStateOf("Vacaciones Cartagena 2026") }
     var description by remember { mutableStateOf("") }
 
-    val nameString: String = albumName
-    val isNameValid = nameString.length > 0
+    val isNameValid = albumName.isNotBlank()
 
     Scaffold(
         topBar = {
@@ -82,15 +81,37 @@ fun CreateAlbumScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            Text("El álbum se creará y podrás ver el token de invitación en los detalles del álbum.", color = MaterialTheme.colorScheme.outline)
+            Text("Invitar participantes", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.weight(1f))
+            ParticipantItem(
+                name = "Andrés Rincón",
+                email = "acrincona@correo.com",
+                status = "Unido",
+                statusColor = Color(0xFFE8F5E9),
+                textColor = Color(0xFF2E7D32)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            ParticipantItem(
+                name = "Diego Viera",
+                email = "Invitación pendiente",
+                status = "Pendiente",
+                statusColor = Color(0xFFFFF3E0),
+                textColor = Color(0xFFEF6C00)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            TextButton(onClick = { /* TODO: Lógica para agregar más miembros */ }) {
+                Text("+ Agregar más personas", color = MaterialTheme.colorScheme.primary)
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
 
             Button(
                 onClick = {
                     if (isNameValid) {
-                        viewModel.crearAlbum(albumName, description) {
-                            onNavigateBack()
+                        viewModel.crearAlbum(albumName.trim(), description.trim()) {
+                            onNavigateToUpload(albumName.trim())
                         }
                     }
                 },
@@ -109,9 +130,13 @@ fun CreateAlbumScreen(
 }
 
 @Composable
-fun ParticipantItem(name: String, email: String, status: String, statusColor: Color, textColor: Color) {
-    val initialLetters = if (name.length >= 2) "${name[0]}${name[1]}" else name
-
+fun ParticipantItem(
+    name: String,
+    email: String,
+    status: String,
+    statusColor: Color,
+    textColor: Color
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -128,7 +153,7 @@ fun ParticipantItem(name: String, email: String, status: String, statusColor: Co
                     .background(MaterialTheme.colorScheme.primary),
                 contentAlignment = Alignment.Center
             ) {
-                Text(initialLetters, color = Color.White, fontWeight = FontWeight.Bold)
+                Text(name.take(2).uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
