@@ -372,19 +372,26 @@ class UploadPhotosViewModel(application: Application) : AndroidViewModel(applica
     private suspend fun sincronizarLoteConBackend(albumId: String, tasks: List<TaskQueueEntity>) {
         withContext(Dispatchers.IO) {
             try {
-                val resultDao = database.classificationResultDao()
                 val cleanAlbumId = albumId.replace("\"", "").trim()
+                val resultDao = database.classificationResultDao()
 
-                // 1. Obtener las fotos recién guardadas en Room para este álbum
+                // 1. Consultar Room usando el cleanAlbumId
                 val resultadosLocales = resultDao.getResultsForAlbum(cleanAlbumId)
+                if (resultadosLocales.isEmpty()) {
+                    Log.w("SYNC_BACKEND", "No se encontraron resultados en Room para albumId: $cleanAlbumId")
+                    return@withContext
+                }
 
-                if (resultadosLocales.isEmpty()) return@withContext
+                // 2. Extraer el UUID real del usuario desde el JWT
+                val tokenManager = com.tesis.albumcolaborativo.data.local.TokenManager(getApplication())
+                val rawToken = tokenManager.obtenerToken() ?: ""
+                val realUserId = extraerUserIdDeJwt(rawToken) ?: "c015413b-2602-4129-938a-03afdd465e1d"
 
-                // 2. Construir el DTO para Spring Boot
+                // 3. Mapear al DTO
                 val fotosDto = resultadosLocales.map { result ->
                     com.tesis.albumcolaborativo.data.model.FotoResultDto(
                         taskId = result.taskId,
-                        propietarioId = "00000000-0000-0000-0000-000000000000", // O id de usuario logueado
+                        propietarioId = realUserId,
                         etiquetaConsolidada = extractLabelFromJson(result.topPredictionsJson),
                         porcentajeConfianza = result.predictedScore
                     )
@@ -395,18 +402,31 @@ class UploadPhotosViewModel(application: Application) : AndroidViewModel(applica
                     fotos = fotosDto
                 )
 
-                // 3. Petición HTTP POST a Spring Boot
+                // 4. Enviar la petición REST
                 val apiService = com.tesis.albumcolaborativo.data.network.RetrofitClient.getApiService(getApplication())
                 val response = apiService.sincronizarResultados(cleanAlbumId, request)
 
                 if (response.isSuccessful) {
-                    Log.i("SYNC_BACKEND", "Sincronizados ${fotosDto.size} resultados con PostgreSQL")
+                    Log.i("SYNC_BACKEND", "¡Sincronización exitosa en PostgreSQL para $cleanAlbumId!")
                 } else {
-                    Log.e("SYNC_BACKEND", "Error HTTP al sincronizar: ${response.code()}")
+                    Log.e("SYNC_BACKEND", "Error HTTP al sincronizar: ${response.code()} ${response.errorBody()?.string()}")
                 }
             } catch (e: Exception) {
                 Log.e("SYNC_BACKEND", "Excepción al sincronizar con el backend central", e)
             }
+        }
+    }
+
+    private fun extraerUserIdDeJwt(token: String): String? {
+        return try {
+            val parts = token.replace("\"", "").trim().split(".")
+            if (parts.size > 1) {
+                val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE))
+                val json = org.json.JSONObject(payload)
+                json.optString("sub", null)
+            } else null
+        } catch (e: Exception) {
+            null
         }
     }
 

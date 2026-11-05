@@ -38,21 +38,10 @@ class AlbumCategoriesViewModel(application: Application) : AndroidViewModel(appl
             _uiState.value = _uiState.value.copy(isLoading = true)
 
             withContext(Dispatchers.IO) {
-                // 1. Sanitizar ID
                 val cleanAlbumId = albumId.replace("\"", "").trim()
+                val results = resultDao.getResultsForAlbum(cleanAlbumId)
 
-                Log.d("ALBUM_CATEGORIES", "Buscando fotos en Room para albumId: '$cleanAlbumId'")
-
-                // 2. Probar primero con el ID limpio
-                var results = resultDao.getResultsForAlbum(cleanAlbumId)
-
-                // 3. Fallback: Si no encuentra resultados, probar con el ID tal como llegó de la navegación
-                if (results.isEmpty() && cleanAlbumId != albumId) {
-                    Log.w("ALBUM_CATEGORIES", "Sin resultados para id limpio. Intentando con id original: '$albumId'")
-                    results = resultDao.getResultsForAlbum(albumId)
-                }
-
-                Log.d("ALBUM_CATEGORIES", "Total fotos recuperadas de Room: ${results.size}")
+                Log.d("ALBUM_CATEGORIES", "Recuperadas de Room: ${results.size}")
 
                 if (results.isNotEmpty()) {
                     val groupedMap = results.groupBy { result ->
@@ -66,6 +55,7 @@ class AlbumCategoriesViewModel(application: Application) : AndroidViewModel(appl
                         )
                     }.sortedByDescending { it.photos.size }
 
+                    // Actualizar inmediatamente la UI con las fotos de Room
                     _uiState.value = AlbumCategoriesUiState(
                         categories = categoryGroups,
                         totalPhotos = results.size,

@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,10 +26,19 @@ import com.tesis.albumcolaborativo.ui.viewmodel.AlbumViewModel
 fun CreateAlbumScreen(
     viewModel: AlbumViewModel = viewModel(),
     onNavigateBack: () -> Unit,
-    onNavigateToUpload: (albumName: String) -> Unit = {}
+    onNavigateToUpload: (albumId: String, albumName: String) -> Unit = { _, _ -> }
 ) {
     var albumName by remember { mutableStateOf("Vacaciones Cartagena 2026") }
     var description by remember { mutableStateOf("") }
+    var isCreating by remember { mutableStateOf(false) }
+
+    // Estados para la gestión dinámica de invitaciones
+    var showAddMemberDialog by remember { mutableStateOf(false) }
+    var nuevoCorreo by remember { mutableStateOf("") }
+    var errorCorreo by remember { mutableStateOf<String?>(null) }
+
+    // Lista local de correos agregados antes de persistir el álbum
+    val invitadosLocales = remember { mutableStateListOf<String>() }
 
     val isNameValid = albumName.isNotBlank()
 
@@ -59,6 +69,7 @@ fun CreateAlbumScreen(
                 onValueChange = { albumName = it },
                 placeholder = { Text("Ej: Vacaciones Cartagena 2026") },
                 modifier = Modifier.fillMaxWidth(),
+                enabled = !isCreating,
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent
@@ -73,6 +84,7 @@ fun CreateAlbumScreen(
                 onValueChange = { description = it },
                 placeholder = { Text("Ej: Viaje con los amigos del trabajo") },
                 modifier = Modifier.fillMaxWidth(),
+                enabled = !isCreating,
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent
@@ -84,24 +96,35 @@ fun CreateAlbumScreen(
             Text("Invitar participantes", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(16.dp))
 
-            ParticipantItem(
-                name = "Andrés Rincón",
-                email = "acrincona@correo.com",
-                status = "Unido",
-                statusColor = Color(0xFFE8F5E9),
-                textColor = Color(0xFF2E7D32)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            ParticipantItem(
-                name = "Diego Viera",
-                email = "Invitación pendiente",
-                status = "Pendiente",
-                statusColor = Color(0xFFFFF3E0),
-                textColor = Color(0xFFEF6C00)
-            )
+            // Participantes renderizados dinámicamente según la lista local
+            if (invitadosLocales.isEmpty()) {
+                Text(
+                    text = "Aún no has agregado invitaciones.",
+                    fontSize = 13.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            } else {
+                invitadosLocales.forEach { correo ->
+                    ParticipantItem(
+                        name = correo.substringBefore("@").replaceFirstChar { it.uppercase() },
+                        email = correo,
+                        status = "Pendiente",
+                        statusColor = Color(0xFFFFF3E0),
+                        textColor = Color(0xFFEF6C00),
+                        onRemove = { invitadosLocales.remove(correo) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            TextButton(onClick = { /* TODO: Lógica para agregar más miembros */ }) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Botón con acción para desplegar el diálogo
+            TextButton(
+                onClick = { showAddMemberDialog = true },
+                enabled = !isCreating
+            ) {
                 Text("+ Agregar más personas", color = MaterialTheme.colorScheme.primary)
             }
 
@@ -109,23 +132,98 @@ fun CreateAlbumScreen(
 
             Button(
                 onClick = {
-                    if (isNameValid) {
-                        viewModel.crearAlbum(albumName.trim(), description.trim()) {
-                            onNavigateToUpload(albumName.trim())
+                    if (isNameValid && !isCreating) {
+                        isCreating = true
+                        viewModel.crearAlbum(albumName.trim(), description.trim()) { nuevoAlbum ->
+                            // Enviar las invitaciones acumuladas al albumId real de PostgreSQL
+                            if (invitadosLocales.isNotEmpty()) {
+                                invitadosLocales.forEach { correo ->
+                                    viewModel.invitarParticipante(nuevoAlbum.id, correo) { _, _ -> }
+                                }
+                            }
+                            isCreating = false
+                            onNavigateToUpload(nuevoAlbum.id, nuevoAlbum.nombre)
                         }
                     }
                 },
-                enabled = isNameValid,
+                enabled = isNameValid && !isCreating,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
                     .padding(vertical = 8.dp),
                 shape = RoundedCornerShape(28.dp)
             ) {
-                Text("Crear álbum", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                if (isCreating) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                } else {
+                    Text("Crear álbum", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    // DIÁLOGO FLOTANTE PARA AGREGAR NUEVO CORREO
+    if (showAddMemberDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddMemberDialog = false },
+            title = { Text("Invitar participante", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text("Ingresa el correo electrónico del participante:")
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = nuevoCorreo,
+                        onValueChange = {
+                            nuevoCorreo = it
+                            errorCorreo = null
+                        },
+                        label = { Text("Correo electrónico") },
+                        placeholder = { Text("usuario@correo.com") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (errorCorreo != null) {
+                        Text(
+                            text = errorCorreo!!,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val cleanCorreo = nuevoCorreo.trim()
+                        if (cleanCorreo.isBlank() || !cleanCorreo.contains("@")) {
+                            errorCorreo = "Ingresa un correo electrónico válido."
+                        } else if (invitadosLocales.contains(cleanCorreo)) {
+                            errorCorreo = "Este correo ya está en la lista de invitaciones."
+                        } else {
+                            invitadosLocales.add(cleanCorreo)
+                            nuevoCorreo = ""
+                            errorCorreo = null
+                            showAddMemberDialog = false
+                        }
+                    }
+                ) {
+                    Text("Agregar")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showAddMemberDialog = false
+                        nuevoCorreo = ""
+                        errorCorreo = null
+                    }
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }
 
@@ -135,7 +233,8 @@ fun ParticipantItem(
     email: String,
     status: String,
     statusColor: Color,
-    textColor: Color
+    textColor: Color,
+    onRemove: (() -> Unit)? = null
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -171,6 +270,15 @@ fun ParticipantItem(
                     color = textColor,
                     fontWeight = FontWeight.Bold
                 )
+            }
+            if (onRemove != null) {
+                IconButton(onClick = onRemove) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Remover",
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                    )
+                }
             }
         }
     }

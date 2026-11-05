@@ -12,7 +12,6 @@ import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.tesis.albumcolaborativo.ui.screens.*
 import com.tesis.albumcolaborativo.ui.viewmodel.AuthViewModel
-import java.util.UUID
 
 // 1. Definición de Pantallas y Rutas
 sealed class Screen(val route: String) {
@@ -32,7 +31,13 @@ sealed class Screen(val route: String) {
             return "album_detail/$cleanId"
         }
     }
-    object PhotoDetail : Screen("photo_detail")
+    // 👈 Actualizado para recibir la clave primaria taskId de Room
+    object PhotoDetail : Screen("photo_detail/{taskId}") {
+        fun createRoute(taskId: String): String {
+            val cleanTaskId = taskId.replace("\"", "").trim()
+            return "photo_detail/$cleanTaskId"
+        }
+    }
     object Profile : Screen("profile")
     object EditProfile : Screen("edit_profile")
     object DownloadAlbum : Screen("download_album")
@@ -148,8 +153,8 @@ fun AppNavGraph(
         composable(Screen.CreateAlbum.route) {
             CreateAlbumScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToUpload = { albumName ->
-                    val album = AlbumArgs(UUID.randomUUID().toString(), albumName)
+                onNavigateToUpload = { albumRealId, albumName ->
+                    val album = AlbumArgs(albumRealId, albumName)
                     navController.navigate(Screen.UploadPhotos.createRoute(album))
                 }
             )
@@ -227,7 +232,9 @@ fun AppNavGraph(
             AlbumCategoriesScreen(
                 albumId = cleanAlbumId,
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToPhotoDetail = { navController.navigate(Screen.PhotoDetail.route) },
+                onNavigateToPhotoDetail = { taskId ->
+                    navController.navigate(Screen.PhotoDetail.createRoute(taskId))
+                },
                 onNavigateToDownload = { navController.navigate(Screen.DownloadAlbum.route) },
                 onNavigateHome = {
                     navController.navigate(Screen.Home.route) {
@@ -245,8 +252,14 @@ fun AppNavGraph(
             )
         }
 
-        composable(Screen.PhotoDetail.route) {
+        // 👈 Pantalla de Detalle conectada al argumento taskId
+        composable(
+            route = Screen.PhotoDetail.route,
+            arguments = listOf(navArgument("taskId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
             PhotoDetailScreen(
+                taskId = taskId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

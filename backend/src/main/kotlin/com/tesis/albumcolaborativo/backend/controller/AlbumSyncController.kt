@@ -7,17 +7,19 @@ import org.springframework.web.bind.annotation.*
 import java.util.UUID
 
 @RestController
-@RequestMapping("/api/albums")
+@RequestMapping("/api/albumes") // 👈 Unificado a /api/albumes
 class AlbumSyncController(
     private val albumSyncService: AlbumSyncService
 ) {
 
     @PostMapping("/{albumId}/sincronizar-resultados")
     fun sincronizarResultados(
-        @PathVariable albumId: UUID,
+        @PathVariable albumId: String, // 👈 Cambiado a String para evitar fallos de conversión HTTP 401
         @RequestBody request: SyncAlbumResultsDto
     ): ResponseEntity<Void> {
-        val dtoConAlbumId = request.copy(albumId = albumId)
+        val cleanAlbumId = albumId.replace("\"", "").trim()
+        val dtoConAlbumId = request.copy(albumId = UUID.fromString(cleanAlbumId))
+
         albumSyncService.consolidarResultadosAlbum(dtoConAlbumId)
         return ResponseEntity.ok().build()
     }

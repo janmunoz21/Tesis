@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.http.HttpHeaders
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
@@ -24,11 +25,13 @@ class JwtAuthFilter(private val jwtService: JwtService) : OncePerRequestFilter()
     ) {
         val header = request.getHeader(HttpHeaders.AUTHORIZATION)
         if (header != null && header.startsWith("Bearer ")) {
-            val token = header.removePrefix("Bearer ").trim()
+            val token = header.removePrefix("Bearer ").trim().replace("\"", "")
             if (token.isNotBlank() && token != "null") {
-                val usuarioId = jwtService.validar(token)
+                val usuarioId = jwtService.validar(token) // Retorna UUID?
                 if (usuarioId != null && SecurityContextHolder.getContext().authentication == null) {
-                    val auth = UsernamePasswordAuthenticationToken(usuarioId, null, emptyList())
+                    // Otorgamos el rol ROLE_USER explícitamente y pasamos el UUID como principal
+                    val authorities = listOf(SimpleGrantedAuthority("ROLE_USER"))
+                    val auth = UsernamePasswordAuthenticationToken(usuarioId, null, authorities)
                     SecurityContextHolder.getContext().authentication = auth
                 }
             }

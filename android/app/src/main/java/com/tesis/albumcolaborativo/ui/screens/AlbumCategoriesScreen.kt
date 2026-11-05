@@ -40,7 +40,7 @@ fun AlbumCategoriesScreen(
     albumViewModel: AlbumViewModel = viewModel(),
     categoriesViewModel: AlbumCategoriesViewModel = viewModel(),
     onNavigateBack: () -> Unit,
-    onNavigateToPhotoDetail: () -> Unit = {},
+    onNavigateToPhotoDetail: (taskId: String) -> Unit = {},
     onNavigateToDownload: () -> Unit = {},
     onNavigateHome: () -> Unit = {},
     onNavigateToP2P: () -> Unit = {},
@@ -60,7 +60,6 @@ fun AlbumCategoriesScreen(
     val albumDetalle by albumViewModel.albumDetalle.collectAsState()
     val categoriesState by categoriesViewModel.uiState.collectAsState()
 
-    // Categoria seleccionada en los Chips ("TODOS" por defecto)
     var selectedCategoryFilter by remember { mutableStateOf("TODOS") }
 
     LaunchedEffect(albumId) {
@@ -169,9 +168,6 @@ fun AlbumCategoriesScreen(
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
 
-                    // ==========================================
-                    // BARRA HORIZONTAL DE CHIPS DE FILTRO
-                    // ==========================================
                     val allCategories = listOf("TODOS") + categoriesState.categories.map { it.categoryName }
 
                     LazyRow(
@@ -214,9 +210,6 @@ fun AlbumCategoriesScreen(
                         }
                     }
 
-                    // ==========================================
-                    // SECCIONES VERTICALES DE FOTOS
-                    // ==========================================
                     val filteredGroups = if (selectedCategoryFilter == "TODOS") {
                         categoriesState.categories
                     } else {
@@ -230,7 +223,10 @@ fun AlbumCategoriesScreen(
                         verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
                         items(filteredGroups) { group ->
-                            CategorySection(group = group)
+                            CategorySection(
+                                group = group,
+                                onPhotoClick = onNavigateToPhotoDetail
+                            )
                         }
                         item {
                             Spacer(modifier = Modifier.height(16.dp))
@@ -241,7 +237,6 @@ fun AlbumCategoriesScreen(
         }
     }
 
-    // --- DIÁLOGOS DE CONTROL (EDITAR, INVITAR, ETC) ---
     if (showInviteDialog) {
         var isSending by remember { mutableStateOf(false) }
         var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -387,11 +382,11 @@ fun AlbumCategoriesScreen(
     }
 }
 
-// ==========================================
-// COMPOSABLE: SECCIÓN POR CATEGORÍA
-// ==========================================
 @Composable
-fun CategorySection(group: CategoryGroup) {
+fun CategorySection(
+    group: CategoryGroup,
+    onPhotoClick: (taskId: String) -> Unit
+) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -419,7 +414,6 @@ fun CategorySection(group: CategoryGroup) {
             )
         }
 
-        // Grilla de 3 columnas para cada sección
         val rowCount = (group.photos.size + 2) / 3
         val gridHeight = (rowCount * 110).dp
 
@@ -430,7 +424,7 @@ fun CategorySection(group: CategoryGroup) {
                 .height(gridHeight),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            userScrollEnabled = false // El scroll principal lo hace LazyColumn
+            userScrollEnabled = false
         ) {
             items(group.photos) { photo ->
                 Box(
@@ -438,6 +432,7 @@ fun CategorySection(group: CategoryGroup) {
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color(0xFFF0F4F8))
+                        .clickable { onPhotoClick(photo.taskId) } // 👈 Evento de navegación a PhotoDetailScreen
                 ) {
                     AsyncImage(
                         model = photo.imagePath,
@@ -467,7 +462,6 @@ fun CategorySection(group: CategoryGroup) {
     }
 }
 
-// Helper para asignar Emojis dinámicos según el nombre de la categoría
 fun getEmojiForCategory(categoryName: String): String {
     val lower = categoryName.lowercase()
     return when {

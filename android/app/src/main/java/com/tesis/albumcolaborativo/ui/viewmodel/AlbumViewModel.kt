@@ -47,13 +47,17 @@ class AlbumViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun crearAlbum(nombre: String, descripcion: String?, onExito: () -> Unit) {
+    fun crearAlbum(
+        nombre: String,
+        descripcion: String?,
+        onExito: (com.tesis.albumcolaborativo.data.model.AlbumDetalleDto) -> Unit
+    ) {
         viewModelScope.launch {
             _uiState.value = AlbumUiState.Loading
             when (val result = repository.crearAlbum(nombre, descripcion)) {
                 is NetworkResult.Success -> {
                     cargarMisAlbumes()
-                    onExito()
+                    onExito(result.data) // 👈 Entrega el objeto devuelto por Spring Boot con el UUID real
                 }
                 is NetworkResult.Error -> {
                     _uiState.value = AlbumUiState.Error(result.message)

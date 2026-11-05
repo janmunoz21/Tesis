@@ -82,10 +82,10 @@ interface ApiService {
     ): Response<Map<String, String>>
 
     // --- MÓDULO D: SINCRONIZACIÓN DE PROCESAMIENTO E IA ---
-    @POST("api/albums/{id}/sincronizar-resultados")
+    @POST("api/albumes/{id}/sincronizar-resultados")
     suspend fun sincronizarResultados(
         @Path("id") albumId: String,
         @Body request: SyncAlbumResultsDto
-    ): Response<Map<String, String>>
+    ): Response<Unit> // O Response> según retorne el controller
 
 }

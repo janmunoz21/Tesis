@@ -32,13 +32,15 @@ class AlbumRepository(context: Context) {
         }
     }
 
-    suspend fun crearAlbum(nombre: String, descripcion: String?): NetworkResult<Unit> {
+    // 👈 Devuelve AlbumDetalleDto para capturar el ID real de PostgreSQL
+    suspend fun crearAlbum(nombre: String, descripcion: String?): NetworkResult<com.tesis.albumcolaborativo.data.model.AlbumDetalleDto> {
         return try {
             val response = api.crearAlbum(CrearAlbumRequest(nombre, descripcion))
-            if (response.isSuccessful) {
-                NetworkResult.Success(Unit)
+            val body = response.body()
+            if (response.isSuccessful && body != null) {
+                NetworkResult.Success(body)
             } else {
-                NetworkResult.Error("No se pudo crear el album")
+                NetworkResult.Error("No se pudo crear el album (${response.code()})")
             }
         } catch (e: Exception) {
             NetworkResult.Error(e.message ?: "Error de red inesperado")
