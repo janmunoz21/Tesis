@@ -9,6 +9,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
@@ -93,6 +95,9 @@ fun AppNavGraph(
         }
     }
 
+    val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
     pendingInvite?.let { invite ->
         AlertDialog(
             onDismissRequest = { com.tesis.albumcolaborativo.data.network.p2p.P2PManager.clearPendingInvitation() },
@@ -101,6 +106,9 @@ fun AppNavGraph(
             confirmButton = {
                 Button(
                     onClick = {
+                        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            com.tesis.albumcolaborativo.data.repository.AlbumRepository(context).aceptarInvitacion(invite.albumId)
+                        }
                         val album = AlbumArgs(invite.albumId, invite.albumName)
                         com.tesis.albumcolaborativo.data.network.p2p.P2PManager.clearPendingInvitation()
                         navController.navigate(Screen.UploadPhotos.createRoute(album) + "&isCreator=false")
@@ -207,11 +215,12 @@ fun AppNavGraph(
             val isCreator = entry.arguments?.getBoolean("isCreator") ?: true
             UploadPhotosScreen(
                 albumId = album.id,
+                albumName = album.name,
                 isCreator = isCreator,
                 onNavigateBack = { navController.popBackStack() },
                 onBlockAssigned = { photoCount ->
                     navController.navigate(
-                        Screen.AssignedBlock.createRoute(album.copy(photoCount = photoCount))
+                        Screen.ProcessingPhotos.createRoute(album.copy(photoCount = photoCount))
                     )
                 }
             )

@@ -137,12 +137,21 @@ class AlbumRepository(context: Context) {
 
     suspend fun aceptarInvitacion(albumId: String): NetworkResult<String> {
         return try {
-            val response = api.aceptarInvitacion(albumId)
+            val cleanId = albumId.replace("\"", "").trim()
+            val response = api.aceptarInvitacion(cleanId)
+            if (!response.isSuccessful) {
+                try {
+                    val joinRes = api.unirsePorToken(UnirseAlbumRequest(cleanId))
+                    if (joinRes.isSuccessful) {
+                        return NetworkResult.Success("Unido al álbum exitosamente")
+                    }
+                } catch (_: Exception) {}
+            }
             if (response.isSuccessful) {
                 val msj = response.body()?.get("mensaje") ?: "Invitación aceptada"
                 NetworkResult.Success(msj)
             } else {
-                NetworkResult.Error("Error al aceptar invitación")
+                NetworkResult.Error("Error al aceptar invitación (${response.code()})")
             }
         } catch (e: Exception) {
             NetworkResult.Error(e.message ?: "Error de red")

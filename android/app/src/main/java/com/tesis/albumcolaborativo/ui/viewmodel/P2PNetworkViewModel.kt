@@ -70,7 +70,15 @@ class P2PNetworkViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun addManualNode(ipAddress: String, label: String = "Nodo Manual") {
-        P2PManager.addManualNode(ipAddress.trim(), 50051, label.trim())
+        val trimmed = ipAddress.trim()
+        if (trimmed.contains(":")) {
+            val parts = trimmed.split(":")
+            val ip = parts[0].trim()
+            val port = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: 50051
+            P2PManager.addManualNode(ip, port, label.trim())
+        } else {
+            P2PManager.addManualNode(trimmed, 50051, label.trim())
+        }
     }
 
     private fun loadContributionMetrics() {

@@ -148,7 +148,7 @@ fun HomeScreen(
                                     )
                                 }
 
-                                items(state.albumes) { album ->
+                                items(state.albumes.distinctBy { it.id }) { album ->
                                     AlbumCard(album, onClick = { onNavigateToAlbumDetail(album.id) })
                                 }
 
@@ -366,30 +366,38 @@ fun AlbumCard(album: Album, onClick: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = album.title,
                         fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.bodyLarge
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
-                    Text(
-                        text = album.photoCount.toString(),
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "${album.photoCount} fotos",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
                 }
 
+                Spacer(modifier = Modifier.height(4.dp))
+
                 Text(
-                    text = if (album.description.length > 0) album.description else "Sin descripción",
+                    text = if (album.description.isNotBlank()) album.description else "Sin descripción",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.outline
                 )
             }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Text("fotos", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
         }
     }
 }

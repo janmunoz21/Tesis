@@ -29,6 +29,8 @@ class NsdDiscoveryManager(context: Context) {
         context.applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
     private var multicastLock: android.net.wifi.WifiManager.MulticastLock? = null
 
+    private val manualNodes = mutableSetOf<ProcessingNode>()
+
     private val _discoveredNodes = MutableStateFlow<List<ProcessingNode>>(emptyList())
     val discoveredNodes: StateFlow<List<ProcessingNode>> = _discoveredNodes.asStateFlow()
 
@@ -146,8 +148,9 @@ class NsdDiscoveryManager(context: Context) {
 
             override fun onServiceLost(service: NsdServiceInfo) {
                 Log.i(TAG, "Servicio mDNS perdido: ${service.serviceName}")
-                _discoveredNodes.update { nodes ->
-                    nodes.filter { it.nodeId != service.serviceName }
+                _discoveredNodes.update { currentNodes ->
+                    val filtered = currentNodes.filter { it.nodeId != service.serviceName }
+                    (filtered + manualNodes).distinctBy { it.address }
                 }
             }
 
@@ -196,7 +199,6 @@ class NsdDiscoveryManager(context: Context) {
                 if (host != null) {
                     val addressStr = host.hostAddress ?: "127.0.0.1"
 
-                    // Filtro de Loopback: Ignorar si la IP resuelta pertenece a este mismo dispositivo
                     if (isLocalIpAddress(addressStr)) {
                         Log.d(TAG, "Ignorando nodo propio ($addressStr)")
                         return
@@ -216,7 +218,7 @@ class NsdDiscoveryManager(context: Context) {
 
                     _discoveredNodes.update { currentNodes ->
                         val filtered = currentNodes.filter { it.nodeId != newNode.nodeId }
-                        filtered + newNode
+                        (filtered + newNode + manualNodes).distinctBy { it.address }
                     }
                 }
             }
@@ -227,6 +229,26 @@ class NsdDiscoveryManager(context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Excepción al resolver servicio: ${e.message}")
         }
+    }
+
+    /**
+     * Permite agregar manualmente un nodo por su dirección IP (útil para pruebas Emulador <-> Celular Físico).
+     */
+    fun addManualNode(ipAddress: String, port: Int = 50051, label: String = "Nodo Manual") {
+        val newNode = ProcessingNode(
+            nodeId = "Manual_$ipAddress",
+            address = ipAddress,
+            port = port,
+            available = true,
+            deviceName = label.ifBlank { "Nodo $ipAddress" },
+            isLocal = false
+        )
+        manualNodes.add(newNode)
+        _discoveredNodes.update { currentNodes ->
+            val filtered = currentNodes.filter { it.address != newNode.address }
+            (filtered + newNode + manualNodes).distinctBy { it.address }
+        }
+        Log.i(TAG, "Nodo manual agregado persistentemente: ${newNode.address}:${newNode.port}")
     }
 
     /**
@@ -249,24 +271,6 @@ class NsdDiscoveryManager(context: Context) {
             Log.e(TAG, "Error consultando IPs locales: ${e.message}")
         }
         return false
-    }
-
-    /**
-     * Permite agregar manualmente un nodo por su dirección IP (útil para pruebas Emulador <-> Celular Físico).
-     */
-    fun addManualNode(ipAddress: String, port: Int = 50051, label: String = "Nodo Manual") {
-        val newNode = ProcessingNode(
-            nodeId = "Manual_$ipAddress",
-            address = ipAddress,
-            port = port,
-            available = true,
-            deviceName = label.ifBlank { "Nodo $ipAddress" },
-            isLocal = false
-        )
-        _discoveredNodes.update { currentNodes ->
-            val filtered = currentNodes.filter { it.address != newNode.address }
-            filtered + newNode
-        }
     }
 
     /**

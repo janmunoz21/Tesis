@@ -17,7 +17,8 @@ data class RemoteTaskResultDto(
     val topPredictionsJson: String,
     val predictedClassIndex: Int,
     val predictedScore: Float,
-    val inferenceTimeMs: Long
+    val inferenceTimeMs: Long,
+    val imageBytesBase64: String? = null
 )
 
 data class TaskBlockResponse(

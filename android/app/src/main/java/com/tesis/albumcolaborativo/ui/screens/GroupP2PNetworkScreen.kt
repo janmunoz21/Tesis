@@ -88,7 +88,7 @@ fun GroupP2PNetworkScreen(
                         )
                         Text(
                             text = if (uiState.isNodeActive) 
-                                "Publicando servicio mDNS en puerto 50051" 
+                                "Publicando servicio mDNS en puerto ${com.tesis.albumcolaborativo.data.network.p2p.P2PManager.getServicePort()}" 
                                 else "Nodo oculto (modo manual desactivado)",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant

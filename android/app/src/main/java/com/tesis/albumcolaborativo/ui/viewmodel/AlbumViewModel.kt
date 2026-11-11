@@ -3,13 +3,16 @@ package com.tesis.albumcolaborativo.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.tesis.albumcolaborativo.data.local.AppDatabase
 import com.tesis.albumcolaborativo.data.model.Album
 import com.tesis.albumcolaborativo.data.network.NetworkResult
 import com.tesis.albumcolaborativo.data.repository.AlbumRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 sealed class AlbumUiState {
     object Idle : AlbumUiState()
@@ -20,6 +23,7 @@ sealed class AlbumUiState {
 
 class AlbumViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val database = AppDatabase.getDatabase(application)
     private val repository = AlbumRepository(application)
 
     private val _uiState = MutableStateFlow<AlbumUiState>(AlbumUiState.Loading)
@@ -38,7 +42,16 @@ class AlbumViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.value = AlbumUiState.Loading
             when (val result = repository.obtenerMisAlbumes()) {
                 is NetworkResult.Success -> {
-                    _uiState.value = AlbumUiState.Success(result.data)
+                    val albumesEnriquecidos = withContext(Dispatchers.IO) {
+                        val resultDao = database.classificationResultDao()
+                        result.data.map { album ->
+                            val cleanId = album.id.replace("\"", "").trim()
+                            val localCount = resultDao.getResultsForAlbum(cleanId).size
+                            val finalCount = maxOf(album.photoCount, localCount)
+                            album.copy(photoCount = finalCount)
+                        }
+                    }
+                    _uiState.value = AlbumUiState.Success(albumesEnriquecidos)
                 }
                 is NetworkResult.Error -> {
                     _uiState.value = AlbumUiState.Error(result.message)

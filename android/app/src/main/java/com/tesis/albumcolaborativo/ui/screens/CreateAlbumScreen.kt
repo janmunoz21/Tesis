@@ -174,7 +174,8 @@ fun CreateAlbumScreen(
                                         targetPort = device.port,
                                         albumId = newAlbumId,
                                         albumName = albumName.trim(),
-                                        inviterName = p2pState.localDeviceName
+                                        inviterName = p2pState.localDeviceName,
+                                        senderPort = com.tesis.albumcolaborativo.data.network.p2p.P2PManager.getServicePort()
                                     )
                                 }
                                 onNavigateToUpload(newAlbumId, albumName.trim())

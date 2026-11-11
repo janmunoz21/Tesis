@@ -37,6 +37,7 @@ import com.tesis.albumcolaborativo.ui.viewmodels.UploadPhotosViewModel
 @Composable
 fun UploadPhotosScreen(
     albumId: String,
+    albumName: String = "",
     isCreator: Boolean = true,
     onNavigateBack: () -> Unit = {},
     onBlockAssigned: (photoCount: Int) -> Unit = {},
@@ -182,7 +183,7 @@ fun UploadPhotosScreen(
                 if (!isCreator) {
                     Button(
                         onClick = {
-                            viewModel.guardarFotosEnAlbum(albumId) {
+                            viewModel.guardarFotosEnAlbum(albumId, isCreator = false) {
                                 Toast.makeText(
                                     context,
                                     "¡Fotos enviadas al creador! Esperando el inicio del procesamiento...",
@@ -204,7 +205,7 @@ fun UploadPhotosScreen(
                 } else {
                     OutlinedButton(
                         onClick = {
-                            viewModel.guardarFotosEnAlbum(albumId) {
+                            viewModel.guardarFotosEnAlbum(albumId, isCreator = true) {
                                 Toast.makeText(context, "¡Fotos del Creador agregadas al lote!", Toast.LENGTH_SHORT).show()
                             }
                         },
@@ -223,7 +224,7 @@ fun UploadPhotosScreen(
 
                     Button(
                         onClick = {
-                            viewModel.processAndEnqueueBatch(albumId) { assignedCount ->
+                            viewModel.processAndEnqueueBatch(albumId, albumName) { assignedCount ->
                                 onBlockAssigned(assignedCount)
                             }
                         },

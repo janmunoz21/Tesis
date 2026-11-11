@@ -9,19 +9,19 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface TaskQueueDao {
 
-    @Insert
+    @Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
     suspend fun insert(task: TaskQueueEntity): Long
 
-    @Insert
+    @Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
     suspend fun insertAll(tasks: List<TaskQueueEntity>): List<Long>
 
-    @Query("SELECT * FROM task_queue WHERE albumId = :albumId")
+    @Query("SELECT * FROM task_queue WHERE LOWER(TRIM(albumId)) = LOWER(TRIM(:albumId))")
     fun getTasksByAlbum(albumId: String): Flow<List<TaskQueueEntity>>
 
     @Query("""
         SELECT * FROM task_queue
-        WHERE albumId = :albumId
-        AND estadoSincronizacion = :estado
+        WHERE LOWER(TRIM(albumId)) = LOWER(TRIM(:albumId))
+        AND UPPER(TRIM(estadoSincronizacion)) = UPPER(TRIM(:estado))
     """)
     suspend fun getTasksByEstado(
         albumId: String,

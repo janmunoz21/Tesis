@@ -9,7 +9,9 @@ import kotlinx.coroutines.flow.asStateFlow
 data class P2PInviteEvent(
     val albumId: String,
     val albumName: String,
-    val inviterName: String
+    val inviterName: String,
+    val inviterAddress: String = "",
+    val inviterPort: Int = 50051
 )
 
 data class P2PProcessingSignalEvent(
@@ -24,11 +26,33 @@ object P2PManager {
     private var grpcService: GrpcP2PService? = null
     private var isInitialized = false
 
+    private val assignedBlockCounts = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
+    fun setAssignedBlockCount(albumId: String, count: Int) {
+        val cleanId = albumId.replace("\"", "").trim()
+        if (cleanId.isNotBlank() && count > 0) {
+            assignedBlockCounts[cleanId] = count
+        }
+    }
+
+    fun getAssignedBlockCount(albumId: String): Int {
+        val cleanId = albumId.replace("\"", "").trim()
+        return assignedBlockCounts[cleanId] ?: 0
+    }
+
+    @Volatile
+    private var activeCreatorAddress: String? = null
+    @Volatile
+    private var activeCreatorPort: Int = 50051
+
     private val _isNodeActive = MutableStateFlow(true)
     val isNodeActive: StateFlow<Boolean> = _isNodeActive.asStateFlow()
 
     private val _pendingInvitation = MutableStateFlow<P2PInviteEvent?>(null)
     val pendingInvitation: StateFlow<P2PInviteEvent?> = _pendingInvitation.asStateFlow()
+
+    private val _processingSignal = MutableStateFlow<P2PProcessingSignalEvent?>(null)
+    val processingSignal: StateFlow<P2PProcessingSignalEvent?> = _processingSignal.asStateFlow()
 
     fun init(context: Context) {
         if (isInitialized) return
@@ -41,8 +65,9 @@ object P2PManager {
     }
 
     fun startServices() {
-        nsdManager?.registerService(port = 50051)
         grpcService?.startServer()
+        val port = grpcService?.getActivePort() ?: 50051
+        nsdManager?.registerService(port = port)
         nsdManager?.startDiscovery()
         _isNodeActive.value = true
     }
@@ -54,15 +79,23 @@ object P2PManager {
         _isNodeActive.value = false
     }
 
-    fun toggleAvailability(active: Boolean) {
-        if (active) startServices() else stopServices()
+    fun onInviteReceived(albumId: String, albumName: String, inviterName: String, inviterAddress: String = "", inviterPort: Int = 50051) {
+        if (inviterAddress.isNotBlank()) {
+            activeCreatorAddress = inviterAddress
+            activeCreatorPort = if (inviterPort > 0) inviterPort else 50051
+            nsdManager?.addManualNode(inviterAddress, activeCreatorPort, inviterName)
+        }
+        _pendingInvitation.value = P2PInviteEvent(albumId, albumName, inviterName, inviterAddress, activeCreatorPort)
     }
 
-    private val _processingSignal = MutableStateFlow<P2PProcessingSignalEvent?>(null)
-    val processingSignal: StateFlow<P2PProcessingSignalEvent?> = _processingSignal.asStateFlow()
+    fun getCreatorAddress(): String? = activeCreatorAddress
 
-    fun onInviteReceived(albumId: String, albumName: String, inviterName: String) {
-        _pendingInvitation.value = P2PInviteEvent(albumId, albumName, inviterName)
+    fun getCreatorPort(): Int = activeCreatorPort
+
+    fun getServicePort(): Int = grpcService?.getActivePort() ?: 50051
+
+    fun clearPendingInvitation() {
+        _pendingInvitation.value = null
     }
 
     fun onProcessingSignalReceived(albumId: String, albumName: String, totalTasks: Int) {
@@ -73,19 +106,27 @@ object P2PManager {
         _processingSignal.value = null
     }
 
-    fun addManualNode(ipAddress: String, port: Int = 50051, label: String = "Nodo Manual") {
-        nsdManager?.addManualNode(ipAddress, port, label)
-    }
-
-    fun clearPendingInvitation() {
-        _pendingInvitation.value = null
-    }
-
     fun getDiscoveredNodes(): StateFlow<List<ProcessingNode>> {
+        grpcService?.startServer()
         return nsdManager?.discoveredNodes ?: MutableStateFlow(emptyList())
     }
 
     fun isDiscovering(): StateFlow<Boolean> {
         return nsdManager?.isDiscovering ?: MutableStateFlow(false)
+    }
+
+    fun toggleAvailability(active: Boolean) {
+        _isNodeActive.value = active
+        if (active) {
+            startServices()
+        } else {
+            stopServices()
+        }
+    }
+
+    fun addManualNode(ipAddress: String, port: Int = 50051, label: String = "Nodo Manual") {
+        activeCreatorAddress = ipAddress
+        activeCreatorPort = port
+        nsdManager?.addManualNode(ipAddress, port, label)
     }
 }

@@ -162,26 +162,20 @@ fun ProcessingPhotosScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Text(
-                        "Estado de las imágenes",
+                        "Resumen de Procesamiento P2P",
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
                     )
 
                     StatusRow(
-                        label = "Total de imágenes",
+                        label = "Total de imágenes del álbum",
                         count = uiState.totalTasks,
                         color = Color.Black
                     )
 
                     StatusRow(
-                        label = "Pendientes",
-                        count = uiState.pendingTasks,
-                        color = Color(0xFFED9D25)
-                    )
-
-                    StatusRow(
-                        label = "Asignadas",
-                        count = uiState.assignedTasks,
+                        label = "Fotos en tu bloque asignado",
+                        count = if (uiState.assignedTasks > 0) uiState.assignedTasks else uiState.totalTasks,
                         color = Blue
                     )
 
@@ -198,6 +192,48 @@ fun ProcessingPhotosScreen(
                             color = Color.Gray
                         )
                     }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Tarjeta con métricas de rendimiento y recursos (TIEMPO PROMEDIO, RECURSOS Y TIEMPO TOTAL)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Blue.copy(alpha = 0.3f)),
+                color = Color(0xFFE3F2FD).copy(alpha = 0.25f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        "⚡ Métricas de Rendimiento P2P",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Color(0xFF1565C0)
+                    )
+
+                    HorizontalDivider(color = Blue.copy(alpha = 0.2f))
+
+                    MetricDetailRow(
+                        icon = "⏱️",
+                        label = "T. Promedio / Foto (Bloque)",
+                        value = "${uiState.avgInferenceTimeMs} ms / foto"
+                    )
+
+                    MetricDetailRow(
+                        icon = "📊",
+                        label = "Recursos de Hardware Usados",
+                        value = "RAM: ${uiState.ramUsedMb} MB · CPU: ${uiState.cpuCores} núcleos"
+                    )
+
+                    MetricDetailRow(
+                        icon = "🚀",
+                        label = "Tiempo Total Proceso Completo",
+                        value = String.format(java.util.Locale.getDefault(), "%.2f s", maxOf(0.1f, uiState.totalExecutionTimeMs / 1000.0f))
+                    )
                 }
             }
 
@@ -287,5 +323,25 @@ private fun StatusRow(
             color = color,
             fontWeight = FontWeight.Bold
         )
+    }
+}
+
+@Composable
+private fun MetricDetailRow(
+    icon: String,
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(icon, fontSize = 14.sp)
+            Spacer(Modifier.width(8.dp))
+            Text(label, style = MaterialTheme.typography.bodySmall, color = Color.DarkGray)
+        }
+        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
     }
 }

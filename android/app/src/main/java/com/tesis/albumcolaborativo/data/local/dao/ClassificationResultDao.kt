@@ -25,7 +25,7 @@ interface ClassificationResultDao {
     // NUEVA
     @Query("""
         SELECT * FROM classification_results
-        WHERE albumId = :albumId
+        WHERE LOWER(TRIM(albumId)) = LOWER(TRIM(:albumId))
         ORDER BY completedAt DESC
     """)
     suspend fun getResultsForAlbum(albumId: String): List<ClassificationResultEntity>

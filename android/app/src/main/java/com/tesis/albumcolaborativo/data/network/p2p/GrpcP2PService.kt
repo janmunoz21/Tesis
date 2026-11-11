@@ -1,10 +1,7 @@
 package com.tesis.albumcolaborativo.data.network.p2p
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
-import android.widget.Toast
 import com.google.gson.Gson
 import com.tesis.albumcolaborativo.data.distribution.grpc.TaskBlockRequest
 import com.tesis.albumcolaborativo.data.distribution.grpc.TaskBlockResponse
@@ -16,10 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import java.io.BufferedReader
 import java.io.File
-import java.io.InputStreamReader
-import java.io.PrintWriter
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
@@ -31,31 +25,65 @@ class GrpcP2PService(private val context: Context, private val port: Int = 50051
         private const val TAG = "GrpcP2PService"
     }
 
+    @Volatile
     private var serverSocket: ServerSocket? = null
+    @Volatile
     private var isRunning = false
+    @Volatile
+    private var activePort = port
     private val scope = CoroutineScope(Dispatchers.IO + Job())
     private val gson = com.google.gson.GsonBuilder().setLenient().create()
     private val database = AppDatabase.getDatabase(context)
 
+    fun getActivePort(): Int = activePort
+
     fun startServer() {
-        if (isRunning) return
-        isRunning = true
+        synchronized(this) {
+            val currentSocket = serverSocket
+            if (currentSocket != null && currentSocket.isBound && !currentSocket.isClosed) {
+                return
+            }
+            if (isRunning) return
+
+            var ss: ServerSocket? = null
+            var boundPort = port
+
+            for (p in port..port + 5) {
+                try {
+                    val candidate = ServerSocket().apply {
+                        reuseAddress = true
+                        bind(InetSocketAddress(p))
+                    }
+                    ss = candidate
+                    boundPort = p
+                    this@GrpcP2PService.activePort = p
+                    break
+                } catch (_: Exception) {}
+            }
+
+            if (ss == null) {
+                isRunning = false
+                Log.e(TAG, "No se pudo enlazar servidor P2P en puertos $port..${port+5}")
+                return
+            }
+
+            serverSocket = ss
+            isRunning = true
+            Log.i(TAG, "Servidor P2P iniciado exitosamente y escuchando en puerto $boundPort")
+        }
 
         scope.launch {
             try {
-                serverSocket = ServerSocket().apply {
-                    reuseAddress = true
-                    bind(InetSocketAddress(port))
-                }
-                Log.i(TAG, "Servidor P2P iniciado exitosamente y escuchando en puerto $port")
-
+                val ss = serverSocket ?: return@launch
                 while (isRunning) {
-                    val clientSocket = serverSocket?.accept() ?: break
+                    val clientSocket = ss.accept() ?: break
                     handleClient(clientSocket)
                 }
             } catch (e: Exception) {
-                isRunning = false
-                Log.e(TAG, "Error iniciando servidor P2P en puerto $port: ${e.message}", e)
+                synchronized(this@GrpcP2PService) {
+                    isRunning = false
+                }
+                Log.e(TAG, "Servidor P2P error: ${e.message}")
             }
         }
     }
@@ -64,120 +92,179 @@ class GrpcP2PService(private val context: Context, private val port: Int = 50051
         scope.launch {
             try {
                 socket.use { client ->
-                    val reader = BufferedReader(InputStreamReader(client.getInputStream()))
-                    val writer = PrintWriter(client.getOutputStream(), true)
+                    val input = client.getInputStream()
+                    val headerBytes = ByteArray(4096)
+                    var headerLen = 0
 
-                    var firstLine: String? = null
-                    var line: String?
-                    var contentLength = 0
+                    // Leer bytes del encabezado HTTP hasta encontrar \r\n\r\n
+                    while (headerLen < 4096) {
+                        val b = input.read()
+                        if (b == -1) break
+                        headerBytes[headerLen++] = b.toByte()
+                        if (headerLen >= 4 &&
+                            headerBytes[headerLen - 4] == 13.toByte() &&
+                            headerBytes[headerLen - 3] == 10.toByte() &&
+                            headerBytes[headerLen - 2] == 13.toByte() &&
+                            headerBytes[headerLen - 1] == 10.toByte()) {
+                            break
+                        }
+                    }
 
-                    firstLine = reader.readLine()
-                    if (firstLine == null) return@use
+                    val headerText = String(headerBytes, 0, headerLen, Charsets.UTF_8)
 
-                    if (firstLine.startsWith("GET /p2p/ping", ignoreCase = true)) {
+                    if (headerText.startsWith("GET /p2p/ping", ignoreCase = true)) {
                         val jsonResponse = gson.toJson(mapOf("status" to "OK", "pong" to true))
-                        writer.println("HTTP/1.1 200 OK")
-                        writer.println("Content-Type: application/json")
-                        writer.println("Content-Length: ${jsonResponse.length}")
-                        writer.println()
-                        writer.print(jsonResponse)
-                        writer.flush()
+                        writeJsonResponse(client, jsonResponse)
                         return@use
                     }
 
-                    while (reader.readLine().also { line = it } != null) {
-                        if (line.isNull_or_blank()) break
-                        if (line!!.startsWith("Content-Length:", ignoreCase = true)) {
-                            contentLength = line!!.substringAfter(":").trim().toIntOrDefault(0)
-                        }
-                    }
+                    // Extraer Content-Length de los encabezados HTTP
+                    val contentLengthLine = headerText.lines().find { it.startsWith("Content-Length:", ignoreCase = true) }
+                    val contentLength = contentLengthLine?.substringAfter(":")?.trim()?.toIntOrNull() ?: 0
 
+                    var bodyJson = ""
                     if (contentLength > 0) {
-                        val bodyChars = CharArray(contentLength)
+                        val bodyBytes = ByteArray(contentLength)
                         var totalRead = 0
                         while (totalRead < contentLength) {
-                            val read = reader.read(bodyChars, totalRead, contentLength - totalRead)
+                            val read = input.read(bodyBytes, totalRead, contentLength - totalRead)
                             if (read <= 0) break
                             totalRead += read
                         }
-                        val bodyJson = String(bodyChars, 0, totalRead)
+                        bodyJson = String(bodyBytes, 0, totalRead, Charsets.UTF_8)
+                    }
 
-                        if (bodyJson.contains("\"INVITE\"")) {
-                            val map = gson.fromJson(bodyJson, Map::class.java)
-                            val albumId = map["albumId"] as? String ?: UUID.randomUUID().toString()
-                            val albumName = map["albumName"] as? String ?: "Nuevo Álbum"
-                            val inviterName = map["inviterName"] as? String ?: "Un usuario"
+                    if (bodyJson.contains("\"INVITE\"")) {
+                        val map = gson.fromJson(bodyJson, Map::class.java)
+                        val albumId = map["albumId"] as? String ?: UUID.randomUUID().toString()
+                        val albumName = map["albumName"] as? String ?: "Nuevo Álbum"
+                        val inviterName = map["inviterName"] as? String ?: "Un usuario"
+                        val inviterIpInBody = map["inviterAddress"] as? String ?: ""
+                        val inviterPortInBody = (map["inviterPort"] as? Number)?.toInt() ?: 50051
+                        val socketIp = client.inetAddress?.hostAddress ?: ""
+                        val finalCreatorIp = if (inviterIpInBody.isNotBlank()) inviterIpInBody else socketIp
 
-                            Log.i(TAG, "Invitación P2P recibida de $inviterName para '$albumName' (ID: $albumId)")
+                        Log.i(TAG, "Invitación P2P recibida de $inviterName ($finalCreatorIp:$inviterPortInBody) para '$albumName' (ID: $albumId)")
 
-                            P2PManager.onInviteReceived(albumId, albumName, inviterName)
+                        P2PManager.onInviteReceived(albumId, albumName, inviterName, finalCreatorIp, inviterPortInBody)
 
-                            val jsonResponse = gson.toJson(mapOf("status" to "OK", "message" to "Invitación P2P recibida"))
-                            writer.println("HTTP/1.1 200 OK")
-                            writer.println("Content-Type: application/json")
-                            writer.println("Content-Length: ${jsonResponse.length}")
-                            writer.println()
-                            writer.print(jsonResponse)
-                            writer.flush()
-                        } else if (bodyJson.contains("\"START_PROCESSING\"")) {
+                        val jsonResponse = gson.toJson(mapOf("status" to "OK", "message" to "Invitación P2P recibida"))
+                        writeJsonResponse(client, jsonResponse)
+                    } else if (bodyJson.contains("\"START_PROCESSING\"")) {
+                        val map = gson.fromJson(bodyJson, Map::class.java)
+                        val albumId = map["albumId"] as? String ?: ""
+                        val albumName = map["albumName"] as? String ?: "Álbum Colaborativo"
+                        val totalTasks = (map["totalTasks"] as? Number)?.toInt() ?: 1
+
+                        Log.i(TAG, "Señal START_PROCESSING recibida para álbum $albumId con $totalTasks tareas")
+                        P2PManager.onProcessingSignalReceived(albumId, albumName, totalTasks)
+
+                        val jsonResponse = gson.toJson(mapOf("status" to "OK", "message" to "Procesamiento iniciado"))
+                        writeJsonResponse(client, jsonResponse)
+                    } else if (bodyJson.contains("\"SYNC_RESULTS\"")) {
+                        try {
                             val map = gson.fromJson(bodyJson, Map::class.java)
                             val albumId = map["albumId"] as? String ?: ""
-                            val albumName = map["albumName"] as? String ?: "Álbum Colaborativo"
-                            val totalTasks = (map["totalTasks"] as? Number)?.toInt() ?: 1
+                            val resultsArray = map["results"] as? List<*> ?: emptyList<Any>()
 
-                            Log.i(TAG, "Señal START_PROCESSING recibida para álbum $albumId con $totalTasks tareas")
-                            P2PManager.onProcessingSignalReceived(albumId, albumName, totalTasks)
+                            Log.i(TAG, "Recibidos ${resultsArray.size} resultados consolidados P2P para álbum $albumId")
 
-                            val jsonResponse = gson.toJson(mapOf("status" to "OK", "message" to "Procesamiento iniciado"))
-                            writer.println("HTTP/1.1 200 OK")
-                            writer.println("Content-Type: application/json")
-                            writer.println("Content-Length: ${jsonResponse.length}")
-                            writer.println()
-                            writer.print(jsonResponse)
-                            writer.flush()
-                        } else {
-                            val blockRequest = gson.fromJson(bodyJson, TaskBlockRequest::class.java)
-                            val isEnqueueOnly = blockRequest.action == "ENQUEUE_ONLY" || bodyJson.contains("ENQUEUE_ONLY") || bodyJson.contains("PENDIENTE")
+                            val resultDao = database.classificationResultDao()
+                            val taskDao = database.taskQueueDao()
 
-                            if (isEnqueueOnly) {
-                                Log.i(TAG, "Acumulando ${blockRequest.tasks.size} fotos recibidas del invitado para el álbum ${blockRequest.albumId}")
-                                enqueueReceivedTasks(blockRequest)
+                            for (item in resultsArray) {
+                                val itemJson = gson.toJson(item)
+                                val remoteRes = gson.fromJson(itemJson, com.tesis.albumcolaborativo.data.distribution.grpc.RemoteTaskResultDto::class.java)
 
-                                val responseDto = TaskBlockResponse(
-                                    accepted = true,
-                                    message = "Fotos recibidas y guardadas en el pool del álbum"
+                                var realPath = ""
+                                if (!remoteRes.imageBytesBase64.isNullOrEmpty()) {
+                                    try {
+                                        val cacheFile = File(context.cacheDir, "p2p_synced_${remoteRes.taskId}.jpg")
+                                        val b = android.util.Base64.decode(remoteRes.imageBytesBase64, android.util.Base64.DEFAULT)
+                                        cacheFile.writeBytes(b)
+                                        realPath = cacheFile.absolutePath
+                                    } catch (_: Exception) {}
+                                }
+
+                                val entity = ClassificationResultEntity(
+                                    taskId = remoteRes.taskId,
+                                    experimentId = "P2P_SYNCED",
+                                    albumId = albumId,
+                                    imagePath = realPath,
+                                    predictedClassIndex = remoteRes.predictedClassIndex,
+                                    predictedScore = remoteRes.predictedScore,
+                                    topPredictionsJson = remoteRes.topPredictionsJson,
+                                    preprocessingTimeMs = 0L,
+                                    tensorPreparationTimeMs = 0L,
+                                    inferenceTimeMs = remoteRes.inferenceTimeMs,
+                                    totalProcessingTimeMs = remoteRes.inferenceTimeMs,
+                                    deviceId = "CREATOR_P2P"
                                 )
-                                val jsonResponse = gson.toJson(responseDto)
-                                writer.println("HTTP/1.1 200 OK")
-                                writer.println("Content-Type: application/json")
-                                writer.println("Content-Length: ${jsonResponse.length}")
-                                writer.println()
-                                writer.print(jsonResponse)
-                                writer.flush()
-                            } else {
-                                Log.i(TAG, "Procesando bloque P2P asignado para álbum ${blockRequest.albumId} con ${blockRequest.tasks.size} fotos")
-                                val remoteResults = processReceivedTasks(blockRequest)
+                                resultDao.insert(entity)
 
-                                val responseDto = TaskBlockResponse(
-                                    accepted = true,
-                                    message = "Bloque de ${blockRequest.tasks.size} tareas procesado con éxito",
-                                    results = remoteResults
+                                taskDao.insert(
+                                    TaskQueueEntity(
+                                        taskId = remoteRes.taskId,
+                                        albumId = albumId,
+                                        tipoTarea = "PROCESAMIENTO_IMAGEN",
+                                        payloadJson = "{}",
+                                        estadoSincronizacion = "PROCESADA"
+                                    )
                                 )
-                                val jsonResponse = gson.toJson(responseDto)
-
-                                writer.println("HTTP/1.1 200 OK")
-                                writer.println("Content-Type: application/json")
-                                writer.println("Content-Length: ${jsonResponse.length}")
-                                writer.println()
-                                writer.print(jsonResponse)
-                                writer.flush()
                             }
+                            val jsonResponse = gson.toJson(mapOf("status" to "OK", "message" to "Resultados consolidados guardados"))
+                            writeJsonResponse(client, jsonResponse)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error guardando resultados consolidados P2P: ${e.message}")
+                        }
+                    } else if (bodyJson.isNotBlank()) {
+                        val blockRequest = gson.fromJson(bodyJson, TaskBlockRequest::class.java)
+                        val isEnqueueOnly = blockRequest.action == "ENQUEUE_ONLY"
+
+                        if (isEnqueueOnly) {
+                            Log.i(TAG, "Acumulando ${blockRequest.tasks.size} fotos recibidas del invitado para el álbum ${blockRequest.albumId}")
+                            enqueueReceivedTasks(blockRequest)
+
+                            val responseDto = TaskBlockResponse(
+                                accepted = true,
+                                message = "Fotos recibidas y guardadas en el pool del álbum"
+                            )
+                            val jsonResponse = gson.toJson(responseDto)
+                            writeJsonResponse(client, jsonResponse)
+                        } else {
+                            Log.i(TAG, "Procesando bloque P2P asignado para álbum ${blockRequest.albumId} con ${blockRequest.tasks.size} fotos")
+                            P2PManager.setAssignedBlockCount(blockRequest.albumId, blockRequest.tasks.size)
+                            val remoteResults = processReceivedTasks(blockRequest)
+
+                            val responseDto = TaskBlockResponse(
+                                accepted = true,
+                                message = "Bloque de ${blockRequest.tasks.size} tareas procesado con éxito",
+                                results = remoteResults
+                            )
+                            val jsonResponse = gson.toJson(responseDto)
+                            writeJsonResponse(client, jsonResponse)
                         }
                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error manejando cliente P2P: ${e.message}")
             }
+        }
+    }
+
+    private fun writeJsonResponse(client: Socket, jsonStr: String) {
+        try {
+            val bytes = jsonStr.toByteArray(Charsets.UTF_8)
+            val os = client.getOutputStream()
+            val header = "HTTP/1.1 200 OK\r\n" +
+                    "Content-Type: application/json; charset=utf-8\r\n" +
+                    "Content-Length: ${bytes.size}\r\n" +
+                    "Connection: close\r\n\r\n"
+            os.write(header.toByteArray(Charsets.UTF_8))
+            os.write(bytes)
+            os.flush()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error escribiendo respuesta HTTP P2P: ${e.message}")
         }
     }
 
@@ -278,13 +365,21 @@ class GrpcP2PService(private val context: Context, private val port: Int = 50051
                         )
                         database.taskQueueDao().insert(taskQueueEntity)
 
+                        val imgBytesBase64 = try {
+                            if (imageFile != null && imageFile.exists()) {
+                                val b = imageFile.readBytes()
+                                android.util.Base64.encodeToString(b, android.util.Base64.NO_WRAP)
+                            } else null
+                        } catch (_: Exception) { null }
+
                         completedResults.add(
                             com.tesis.albumcolaborativo.data.distribution.grpc.RemoteTaskResultDto(
                                 taskId = task.taskId,
                                 topPredictionsJson = jsonPredictions,
                                 predictedClassIndex = bestIndex,
                                 predictedScore = bestScore,
-                                inferenceTimeMs = duration
+                                inferenceTimeMs = duration,
+                                imageBytesBase64 = imgBytesBase64
                             )
                         )
                     }
@@ -307,11 +402,14 @@ class GrpcP2PService(private val context: Context, private val port: Int = 50051
     }
 
     fun stopServer() {
-        isRunning = false
-        try {
-            serverSocket?.close()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error cerrando servidor P2P: ${e.message}")
+        synchronized(this) {
+            isRunning = false
+            try {
+                serverSocket?.close()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error cerrando servidor P2P: ${e.message}")
+            }
+            serverSocket = null
         }
     }
 }
