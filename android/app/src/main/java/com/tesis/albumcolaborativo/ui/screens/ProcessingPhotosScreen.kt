@@ -226,7 +226,7 @@ fun ProcessingPhotosScreen(
                     MetricDetailRow(
                         icon = "📊",
                         label = "Recursos de Hardware Usados",
-                        value = "RAM: ${uiState.ramUsedMb} MB · CPU: ${uiState.cpuCores} núcleos"
+                        value = "RAM: ${uiState.ramUsedMb} MB · CPU: ~${uiState.cpuLoadPercent}% (${uiState.cpuCores} núcleos)"
                     )
 
                     MetricDetailRow(

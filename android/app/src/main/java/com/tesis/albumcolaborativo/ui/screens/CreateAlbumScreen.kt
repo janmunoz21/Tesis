@@ -34,7 +34,7 @@ fun CreateAlbumScreen(
     onNavigateBack: () -> Unit,
     onNavigateToUpload: (albumId: String, albumName: String) -> Unit = { _, _ -> }
 ) {
-    var albumName by remember { mutableStateOf("Vacaciones Cartagena 2026") }
+    var albumName by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
 
     val p2pState by p2pViewModel.uiState.collectAsState()

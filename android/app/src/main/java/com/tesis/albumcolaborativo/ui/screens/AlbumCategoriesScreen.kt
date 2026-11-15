@@ -1,5 +1,6 @@
 package com.tesis.albumcolaborativo.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +17,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -52,6 +55,7 @@ fun AlbumCategoriesScreen(
     var showLeaveDialog by remember { mutableStateOf(false) }
     var showInviteDialog by remember { mutableStateOf(false) }
     var showMembersDialog by remember { mutableStateOf(false) }
+    var showMetricsPanel by remember { mutableStateOf(false) }
 
     var nuevoNombre by remember { mutableStateOf("") }
     var nuevaDescripcion by remember { mutableStateOf("") }
@@ -107,10 +111,6 @@ fun AlbumCategoriesScreen(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("Invitar participante") },
-                            onClick = { showMenu = false; showInviteDialog = true }
-                        )
                         DropdownMenuItem(
                             text = { Text("Editar álbum") },
                             onClick = { showMenu = false; showEditDialog = true }
@@ -168,6 +168,104 @@ fun AlbumCategoriesScreen(
                 }
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
+
+                    // ==========================================
+                    // CARD DESPLEGABLE DE MÉTRICAS P2P DEL ÁLBUM
+                    // ==========================================
+                    categoriesState.metrics?.let { metrics ->
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .clickable { showMetricsPanel = !showMetricsPanel },
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFE3F2FD).copy(alpha = 0.5f),
+                            border = BorderStroke(1.dp, Color(0xFF2196F3).copy(alpha = 0.3f))
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("⚡", fontSize = 16.sp)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            "Métricas de Rendimiento del Álbum",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = Color(0xFF1565C0)
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = if (showMetricsPanel) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                        contentDescription = null,
+                                        tint = Color(0xFF1565C0)
+                                    )
+                                }
+
+                                if (showMetricsPanel) {
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    HorizontalDivider(color = Color(0xFF2196F3).copy(alpha = 0.2f))
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text("Modo de ejecución:", fontSize = 12.sp, color = Color.DarkGray)
+                                        Text(
+                                            if (metrics.executionMode == "LOCAL") "Local (1 Dispositivo)" else "P2P Distribuido (${metrics.deviceCount} Dispositivos)",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF1565C0)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text("Tiempo promedio / foto:", fontSize = 12.sp, color = Color.DarkGray)
+                                        Text("${metrics.avgInferenceMs} ms / foto", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+                                    }
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text("Recursos de hardware usados:", fontSize = 12.sp, color = Color.DarkGray)
+                                        Text(
+                                            "RAM: ${metrics.ramUsedMb} MB · CPU: ~${metrics.cpuLoadPercent}% (${metrics.cpuCores} núcleos)",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF1565C0)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text("Tiempo total de procesamiento:", fontSize = 12.sp, color = Color.DarkGray)
+                                        Text(
+                                            String.format(java.util.Locale.getDefault(), "%.2f segundos", maxOf(0.1f, metrics.totalDurationMs / 1000.0f)),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF1565C0)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     // ==========================================
                     // BARRA HORIZONTAL DE CHIPS DE FILTRO
